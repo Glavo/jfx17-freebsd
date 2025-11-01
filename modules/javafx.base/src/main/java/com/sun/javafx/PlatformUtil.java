@@ -177,7 +177,7 @@ public class PlatformUtil {
      * Returns true if the operating system is a form of Linux or Solaris
      */
     public static boolean isUnix(){
-        return LINUX || SOLARIS;
+        return LINUX || SOLARIS || BSD;
     }
 
     /**
