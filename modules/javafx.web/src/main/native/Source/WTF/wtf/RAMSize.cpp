@@ -31,13 +31,17 @@
 #if OS(WINDOWS)
 #include <windows.h>
 #elif USE(SYSTEM_MALLOC)
-#if OS(LINUX) || OS(FREEBSD)
+#if OS(LINUX)
 #include <sys/sysinfo.h>
 #elif OS(UNIX) || OS(HAIKU)
 #include <unistd.h>
 #endif // OS(LINUX) || OS(FREEBSD) || OS(UNIX) || OS(HAIKU)
 #else
 #include <bmalloc/bmalloc.h>
+#endif
+
+#if OS(FREEBSD)
+#include <unistd.h> // Introduced to use sysconf(int name)
 #endif
 
 #if OS(DARWIN)
@@ -60,10 +64,14 @@ static size_t computeRAMSize()
         return ramSizeGuess;
     return status.ullTotalPhys;
 #elif USE(SYSTEM_MALLOC)
-#if OS(LINUX) || OS(FREEBSD)
+#if OS(LINUX)
     struct sysinfo si;
     sysinfo(&si);
     return si.totalram * si.mem_unit;
+#elif OS(FREEBSD)
+    size_t page_size = sysconf(_SC_PAGESIZE);
+    size_t phys_pages = sysconf(_SC_PHYS_PAGES);
+    return  page_size * phys_pages;
 #elif OS(UNIX) || OS(HAIKU)
     long pages = sysconf(_SC_PHYS_PAGES);
     long pageSize = sysconf(_SC_PAGE_SIZE);
