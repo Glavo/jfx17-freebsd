@@ -243,7 +243,7 @@ JNIEXPORT jboolean JNICALL OS_NATIVE(FcConfigAppFontAddFile)
         if (text) {
 //            rc = (jboolean)FcConfigAppFontAddFile(arg0, text);
             if (fp) {
-                rc = (jboolean)((jboolean (*)(void *, const char *))fp)(arg0, text);
+                rc = (jboolean)((int (*)(void *, const char *))fp)((void *)arg0, text);
             }
             (*env)->ReleaseStringUTFChars(env, arg1, text);
         }
@@ -402,7 +402,7 @@ JNIEXPORT jlong JNICALL OS_NATIVE(g_1utf8_1strlen)
     (JNIEnv *env, jclass that, jlong str, jlong pos)
 {
     if (!str) return 0;
-    return (jlong)g_utf8_strlen((const gchar *)str, (const gchar *)pos);
+    return (jlong)g_utf8_strlen((const gchar *)str, (gssize)pos);
 }
 
 JNIEXPORT jlong JNICALL OS_NATIVE(g_1utf16_1to_1utf8)
