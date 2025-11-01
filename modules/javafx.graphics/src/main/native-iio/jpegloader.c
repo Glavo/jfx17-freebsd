@@ -34,8 +34,8 @@
 #include "com_sun_javafx_iio_jpeg_JPEGImageLoader.h"
 
 /* headers from libjpeg */
-#include <jpeglib.h>
-#include <jerror.h>
+#include "jpeglib.h"
+#include "jerror.h"
 
 #if defined (_LP64) || defined(_WIN64)
 #define jlong_to_ptr(a) ((void*)(a))
