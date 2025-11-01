@@ -105,7 +105,7 @@ typedef struct BinaryRegistryCache
 static BinaryRegistryCache *
 gst_registry_binary_cache_init (GstRegistry * registry, const char *location)
 {
-  BinaryRegistryCache *cache = g_slice_new0 (BinaryRegistryCache);
+  BinaryRegistryCache *cache = g_new0 (BinaryRegistryCache, 1);
   cache->location = location;
   return cache;
 }
@@ -159,7 +159,7 @@ gst_registry_binary_cache_finish (BinaryRegistryCache * cache, gboolean success)
   }
 
   g_free (cache->mem);
-  g_slice_free (BinaryRegistryCache, cache);
+  g_free (cache);
   return ret;
 }
 
@@ -175,7 +175,7 @@ typedef struct BinaryRegistryCache
 static BinaryRegistryCache *
 gst_registry_binary_cache_init (GstRegistry * registry, const char *location)
 {
-  BinaryRegistryCache *cache = g_slice_new0 (BinaryRegistryCache);
+  BinaryRegistryCache *cache = g_new0 (BinaryRegistryCache, 1);
   int fd;
 
   cache->location = location;
@@ -205,7 +205,7 @@ gst_registry_binary_cache_init (GstRegistry * registry, const char *location)
     if (fd == -1) {
       GST_DEBUG ("g_mkstemp() failed: %s", g_strerror (errno));
       g_free (cache->tmp_location);
-      g_slice_free (BinaryRegistryCache, cache);
+      g_free (cache);
       return NULL;
     }
 
@@ -220,7 +220,7 @@ gst_registry_binary_cache_init (GstRegistry * registry, const char *location)
     GST_DEBUG ("fdopen() failed: %s", g_strerror (errno));
     close (fd);
     g_free (cache->tmp_location);
-    g_slice_free (BinaryRegistryCache, cache);
+    g_free (cache);
     return NULL;
   }
 
@@ -254,6 +254,7 @@ static gboolean
 gst_registry_binary_cache_finish (BinaryRegistryCache * cache, gboolean success)
 {
   gint fclose_ret;
+  const gchar *registry_mode;
 
   if (success) {
     /* flush the file and make sure the OS's buffer has been written to disk */
@@ -294,8 +295,24 @@ gst_registry_binary_cache_finish (BinaryRegistryCache * cache, gboolean success)
   if (g_rename (cache->tmp_location, cache->location) < 0)
     goto rename_failed;
 
+  /* Change mode of registry if set in environment */
+  registry_mode = g_getenv ("GST_REGISTRY_MODE");
+  if (registry_mode) {
+    gchar *endptr;
+    gint64 mode;
+
+    /* Expect numeric mode as one to four octal digits */
+    mode = g_ascii_strtoll (registry_mode, &endptr, 8);
+    if (mode > G_MAXINT || *endptr != '\0')
+      GST_ERROR ("GST_REGISTRY_MODE not an integer value");
+    else if (g_chmod (cache->location, mode) < 0)
+      GST_ERROR ("g_chmod failed: %s", g_strerror (errno));
+    else
+      GST_INFO ("Changed mode of registry cache to %s", registry_mode);
+  }
+
   g_free (cache->tmp_location);
-  g_slice_free (BinaryRegistryCache, cache);
+  g_free (cache);
   GST_INFO ("Wrote binary registry cache");
   return TRUE;
 
@@ -309,7 +326,7 @@ fail_after_fclose:
   {
     g_unlink (cache->tmp_location);
     g_free (cache->tmp_location);
-    g_slice_free (BinaryRegistryCache, cache);
+    g_free (cache);
     return FALSE;
   }
 fflush_failed:

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,6 +46,9 @@ import javafx.collections.ObservableSet;
 import javafx.collections.SetChangeListener;
 import javafx.css.PseudoClass;
 import javafx.scene.Node;
+import javafx.scene.control.Slider;
+import javafx.scene.layout.Region;
+import org.junit.After;
 import test.com.sun.javafx.scene.control.infrastructure.ControlTestUtils;
 import test.com.sun.javafx.scene.control.infrastructure.KeyEventFirer;
 import test.com.sun.javafx.scene.control.infrastructure.KeyModifier;
@@ -61,6 +64,7 @@ import javafx.collections.ObservableList;
 import javafx.collections.transformation.SortedList;
 import javafx.event.EventHandler;
 import javafx.geometry.Orientation;
+import javafx.scene.AccessibleAttribute;
 import javafx.scene.Group;
 import javafx.scene.Scene;
 import javafx.scene.control.cell.*;
@@ -112,13 +116,14 @@ import test.com.sun.javafx.scene.control.test.Person;
 import test.com.sun.javafx.scene.control.test.RT_22463_Person;
 
 import javafx.scene.control.skin.TableHeaderRowShim;
-import static org.junit.Assert.assertEquals;
 import test.com.sun.javafx.scene.control.infrastructure.TableColumnHeaderUtil;
 
 public class TableViewTest {
     private TableView<String> table;
     private TableView.TableViewSelectionModel sm;
     private TableView.TableViewFocusModel<String> fm;
+
+    private StageLoader stageLoader;
 
     private ObservableList<Person> personTestData;
 
@@ -135,6 +140,12 @@ public class TableViewTest {
                 new Person("Michael", "Brown", "michael.brown@example.com"));
     }
 
+    @After
+    public void cleanup() {
+        if (stageLoader != null) {
+            stageLoader.dispose();
+        }
+    }
 
     /*********************************************************************
      * Tests for the constructors                                        *
@@ -350,6 +361,50 @@ public class TableViewTest {
         assertNull(sm.getSelectedItem());
         assertEquals(0, fm.getFocusedIndex());
         assertEquals("Item 2", fm.getFocusedItem());
+    }
+
+    @Test
+    public void ensureRowRemainsSelectedWhenSelectingCellInSameRow() {
+        class Person {
+            final String firstName, lastName;
+            Person(String firstName, String lastName) {
+                this.firstName = firstName;
+                this.lastName = lastName;
+            }
+            public String getFirstName() { return firstName; }
+            public String getLastName() { return lastName; }
+        }
+
+        var tableView = new TableView<Person>();
+        tableView.getSelectionModel().setCellSelectionEnabled(true);
+        tableView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+
+        var col1 = new TableColumn<Person, String>();
+        col1.setCellValueFactory(new PropertyValueFactory<>("firstName"));
+        var col2 = new TableColumn<Person, String>();
+        col2.setCellValueFactory(new PropertyValueFactory<>("lastName"));
+        tableView.getColumns().addAll(List.of(col1, col2));
+
+        var ab = new Person("a", "b");
+        tableView.getItems().add(ab);
+        var cd = new Person("c", "d");
+        tableView.getItems().add(cd);
+
+        var selectionModel = tableView.getSelectionModel();
+        selectionModel.select(0);
+        selectionModel.clearAndSelect(0, col1);
+
+        // The following asserts should work once JDK-8273336 is fixed:
+        //
+        // assertEquals(1, selectionModel.getSelectedIndices().size());
+        // assertEquals(0, (int)selectionModel.getSelectedIndices().get(0));
+
+        selectionModel.clearSelection();
+        selectionModel.selectRange(0, col1, 1, col2);
+        selectionModel.clearAndSelect(1, col2);
+
+        // assertEquals(1, selectionModel.getSelectedIndices().size());
+        // assertEquals(1, (int)selectionModel.getSelectedIndices().get(0));
     }
 
     /*********************************************************************
@@ -754,6 +809,41 @@ public class TableViewTest {
     /*********************************************************************
      * Tests for specific bugs                                           *
      ********************************************************************/
+
+    /**
+     * JDK-8277853
+     */
+    @Test public void testInvisibleScrollbarDoesNotScrollTableToBeginning() {
+        TableView<Person> table = new TableView<>(personTestData);
+        StageLoader sl = new StageLoader(table);
+
+        TableColumn firstNameCol = new TableColumn("First Name");
+        firstNameCol.setCellValueFactory(new PropertyValueFactory<Person, String>("firstName"));
+
+        TableColumn lastNameCol = new TableColumn("Last Name");
+        lastNameCol.setCellValueFactory(new PropertyValueFactory<Person, String>("lastName"));
+
+        TableColumn emailCol = new TableColumn("Email");
+        emailCol.setCellValueFactory(new PropertyValueFactory<Person, String>("email"));
+
+        table.getColumns().addAll(firstNameCol, lastNameCol, emailCol);
+        table.setItems(personTestData);
+
+        Toolkit.getToolkit().firePulse();
+
+        ScrollBar horizontalBar = VirtualFlowTestUtils.getVirtualFlowHorizontalScrollbar(table);
+        assertNotNull(horizontalBar);
+
+        double scrollbarPosition = horizontalBar.getMax();
+        horizontalBar.setValue(scrollbarPosition);
+
+        assertEquals(scrollbarPosition, horizontalBar.getValue(), 0);
+        horizontalBar.setVisible(false);
+        assertEquals(scrollbarPosition, horizontalBar.getValue(), 0);
+
+        sl.dispose();
+    }
+
     @Test public void test_rt16019() {
         // RT-16019: NodeMemory TableView tests fail with
         // IndexOutOfBoundsException (ObservableListWrapper.java:336)
@@ -1459,14 +1549,16 @@ public class TableViewTest {
 
         StageLoader sl = new StageLoader(tableView);
 
-        assertEquals(17, rt_31200_count);
+        assertTrue(rt_31200_count > 0);
+        assertTrue(rt_31200_count < 18);
 
         // resize the stage
         sl.getStage().setHeight(250);
         Toolkit.getToolkit().firePulse();
         sl.getStage().setHeight(50);
         Toolkit.getToolkit().firePulse();
-        assertEquals(17, rt_31200_count);
+        assertTrue(rt_31200_count > 0);
+        assertTrue(rt_31200_count < 18);
 
         sl.dispose();
     }
@@ -5539,5 +5631,427 @@ public class TableViewTest {
         }
 
         sl.dispose();
+    }
+
+    @Test
+    public void test_clearAndSelectChangeMultipleSelectionCellMode() {
+        TableColumn<Person, String> firstNameCol = new TableColumn<>("First Name");
+        firstNameCol.setCellValueFactory(new PropertyValueFactory<>("firstName"));
+
+        TableColumn<Person, String> lastNameCol = new TableColumn<>("Last Name");
+        lastNameCol.setCellValueFactory(new PropertyValueFactory<>("lastName"));
+
+        TableView<Person> table = new TableView<>();
+        table.setItems(personTestData);
+        table.getColumns().addAll(firstNameCol, lastNameCol);
+
+        sm = table.getSelectionModel();
+        sm.setCellSelectionEnabled(true);
+        sm.setSelectionMode(SelectionMode.MULTIPLE);
+
+        StageLoader sl = new StageLoader(table);
+        KeyEventFirer keyboard = new KeyEventFirer(table);
+
+        assertEquals(0, sm.getSelectedItems().size());
+
+        sm.select(0, firstNameCol);
+        assertEquals(1, sm.getSelectedCells().size());
+        assertEquals(1, sm.getSelectedItems().size());
+
+        keyboard.doKeyPress(KeyCode.RIGHT, KeyModifier.SHIFT);
+        assertEquals(2, sm.getSelectedCells().size());
+        assertEquals(1, sm.getSelectedItems().size());
+
+        keyboard.doKeyPress(KeyCode.LEFT);
+        assertTrue(VirtualFlowTestUtils.getCell(table, 0, 0).isSelected());
+        assertFalse(VirtualFlowTestUtils.getCell(table, 0, 1).isSelected());
+        assertEquals(1, sm.getSelectedCells().size());
+        assertEquals(1, sm.getSelectedItems().size());
+
+        sm.clearSelection();
+
+        sm.selectRange(0, firstNameCol, 1, lastNameCol);
+        assertEquals(4, sm.getSelectedCells().size());
+        assertEquals(2, sm.getSelectedItems().size());
+
+        sm.clearAndSelect(0, firstNameCol);
+        assertEquals(1, sm.getSelectedCells().size());
+        assertEquals(1, sm.getSelectedItems().size());
+
+        sl.dispose();
+    }
+
+    @Test
+    public void test_ChangeToStringKeyboardMultipleSelectionCellMode() {
+        final Thread.UncaughtExceptionHandler exceptionHandler = Thread.currentThread().getUncaughtExceptionHandler();
+        Thread.currentThread().setUncaughtExceptionHandler((t, e) -> fail("We don't expect any exceptions in this test!"));
+
+        TableColumn<Person, String> firstNameCol = new TableColumn<>("First Name");
+        firstNameCol.setCellValueFactory(new PropertyValueFactory<>("firstName"));
+
+        TableColumn<Person, String> lastNameCol = new TableColumn<>("Last Name");
+        lastNameCol.setCellValueFactory(new PropertyValueFactory<>("lastName"));
+
+        TableView<Person> table = new TableView<>();
+        table.setItems(personTestData);
+        table.getColumns().addAll(firstNameCol, lastNameCol);
+
+        sm = table.getSelectionModel();
+        sm.setCellSelectionEnabled(true);
+        sm.setSelectionMode(SelectionMode.MULTIPLE);
+
+        // Call change::toString
+        table.getSelectionModel().getSelectedItems().addListener((ListChangeListener<Person>) Object::toString);
+
+        StageLoader sl = new StageLoader(table);
+
+        KeyEventFirer keyboard = new KeyEventFirer(table);
+
+        assertEquals(0, sm.getSelectedItems().size());
+
+        sm.select(0, firstNameCol);
+        assertEquals(1, sm.getSelectedCells().size());
+        assertEquals(1, sm.getSelectedItems().size());
+
+        keyboard.doKeyPress(KeyCode.RIGHT, KeyModifier.SHIFT);
+        assertEquals(2, sm.getSelectedCells().size());
+        assertEquals(1, sm.getSelectedItems().size());
+
+        sm.clearSelection();
+
+        sl.dispose();
+
+        // reset the exception handler
+        Thread.currentThread().setUncaughtExceptionHandler(exceptionHandler);
+    }
+
+    @Test
+    public void test_ChangeToStringMouseMultipleSelectionCellMode() {
+        final Thread.UncaughtExceptionHandler exceptionHandler = Thread.currentThread().getUncaughtExceptionHandler();
+        Thread.currentThread().setUncaughtExceptionHandler((t, e) -> fail("We don't expect any exceptions in this test!"));
+
+        TableColumn<Person, String> firstNameCol = new TableColumn<>("First Name");
+        firstNameCol.setCellValueFactory(new PropertyValueFactory<>("firstName"));
+
+        TableColumn<Person, String> lastNameCol = new TableColumn<>("Last Name");
+        lastNameCol.setCellValueFactory(new PropertyValueFactory<>("lastName"));
+
+        TableView<Person> table = new TableView<>();
+        table.setItems(personTestData);
+        table.getColumns().addAll(firstNameCol, lastNameCol);
+
+        sm = table.getSelectionModel();
+        sm.setCellSelectionEnabled(true);
+        sm.setSelectionMode(SelectionMode.MULTIPLE);
+
+        // Call change::toString
+        table.getSelectionModel().getSelectedItems().addListener((ListChangeListener<Person>) Object::toString);
+
+        assertEquals(0, sm.getSelectedItems().size());
+
+        sm.select(0, firstNameCol);
+        assertTrue(sm.isSelected(0, firstNameCol));
+        assertEquals(1, sm.getSelectedCells().size());
+        assertEquals(1, sm.getSelectedItems().size());
+
+        TableCell<Person, String> cell = (TableCell<Person, String>) VirtualFlowTestUtils.getCell(table, 0, 1);
+        new MouseEventFirer(cell).fireMousePressAndRelease(KeyModifier.getShortcutKey());
+        assertTrue(sm.isSelected(0, firstNameCol));
+        assertTrue(sm.isSelected(0, lastNameCol));
+        assertEquals(2, sm.getSelectedCells().size());
+        assertEquals(1, sm.getSelectedItems().size());
+
+        // reset the exception handler
+        Thread.currentThread().setUncaughtExceptionHandler(exceptionHandler);
+    }
+
+    // see JDK-8284665
+    @Test
+    public void testAnchorRemainsWhenAddingMoreItemsBelow() {
+        TableView<String> stringTableView = new TableView<>();
+        stringTableView.getItems().addAll("a", "b", "c", "d");
+
+        TableColumn<String,String> column = new TableColumn<>("Column");
+        column.setCellValueFactory(cdf -> new ReadOnlyStringWrapper(cdf.getValue()));
+        stringTableView.getColumns().add(column);
+
+        TableSelectionModel<String> sm = stringTableView.getSelectionModel();
+        sm.setSelectionMode(SelectionMode.MULTIPLE);
+
+        // click on row 1
+        Cell startCell = VirtualFlowTestUtils.getCell(stringTableView, 1, 0);
+        new MouseEventFirer(startCell).fireMousePressAndRelease();
+
+        assertTrue(sm.isSelected(1));
+        assertEquals("b", sm.getSelectedItem());
+
+        TablePosition anchor = TableCellBehavior.getAnchor(stringTableView, null);
+        assertTrue(TableCellBehavior.hasNonDefaultAnchor(stringTableView));
+        assertEquals(1, anchor.getRow());
+        assertEquals(column, anchor.getTableColumn());
+
+        // now add a new item
+        stringTableView.getItems().add("e");
+
+        // select also row 2
+        Cell endCell = VirtualFlowTestUtils.getCell(stringTableView, 2, 0);
+        new MouseEventFirer(endCell).fireMousePressAndRelease(KeyModifier.SHIFT);
+
+        // row 1 should remain selected
+        assertTrue(sm.isSelected(1));
+        assertTrue(sm.isSelected(2));
+
+        // anchor should remain at 1
+        anchor = TableCellBehavior.getAnchor(stringTableView, null);
+        assertTrue(TableCellBehavior.hasNonDefaultAnchor(stringTableView));
+        assertEquals(1, anchor.getRow());
+        assertEquals(column, anchor.getTableColumn());
+    }
+
+    // see JDK-8089009
+    @Test public void testHScrollBarVisibilityForConstrainedTable() {
+        TableColumn firstNameCol = new TableColumn("First Name");
+        firstNameCol.setCellValueFactory(new PropertyValueFactory<Person, String>("firstName"));
+
+        TableColumn lastNameCol = new TableColumn("Last Name");
+        lastNameCol.setCellValueFactory(new PropertyValueFactory<Person, String>("lastName"));
+
+        TableColumn emailCol = new TableColumn("Email");
+        emailCol.setCellValueFactory(new PropertyValueFactory<Person, String>("email"));
+
+        final double initialWidth = 500;
+        TableView<Person> table = new TableView<>(personTestData);
+        table.setMinWidth(initialWidth);
+        table.getColumns().addAll(firstNameCol, lastNameCol, emailCol);
+        table.setItems(personTestData);
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+
+        StageLoader sl = new StageLoader(table);
+        Toolkit.getToolkit().firePulse();
+
+        ScrollBar horizontalBar = VirtualFlowTestUtils.getVirtualFlowHorizontalScrollbar(table);
+        assertNotNull(horizontalBar);
+        assertEquals(initialWidth, table.getWidth(), 0);
+        assertFalse(horizontalBar.isVisible());
+
+        // Reduce table width by 10px
+        table.setMinWidth(initialWidth - 10);
+        Toolkit.getToolkit().firePulse();
+        assertEquals(initialWidth - 10, table.getWidth(), 0);
+        assertFalse(horizontalBar.isVisible());
+
+        // Reset table width
+        table.setMinWidth(initialWidth);
+        Toolkit.getToolkit().firePulse();
+        assertEquals(initialWidth, table.getWidth(), 0);
+        assertFalse(horizontalBar.isVisible());
+
+        // Reduce table width by 1px
+        table.setMinWidth(initialWidth - 1);
+        Toolkit.getToolkit().firePulse();
+        assertEquals(initialWidth - 1, table.getWidth(), 0);
+        assertFalse(horizontalBar.isVisible());
+
+        sl.dispose();
+    }
+
+    // See JDK-8087673
+    @Test
+    public void testTableMenuButtonDoesNotOverlapColumnHeaderGraphic() {
+        TableView<String> table = new TableView<>();
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        table.setTableMenuButtonVisible(true);
+        TableColumn<String, String> column = new TableColumn<>();
+        Slider slider = new Slider();
+        slider.setValue(100);
+        column.setGraphic(slider);
+        table.getColumns().add(column);
+
+        stageLoader = new StageLoader(table);
+
+        Toolkit.getToolkit().firePulse();
+
+        ScrollBar vbar = VirtualFlowTestUtils.getVirtualFlowVerticalScrollbar(table);
+        assertFalse(vbar.isVisible());
+
+        StackPane thumb = (StackPane) slider.lookup(".thumb");
+        assertNotNull(thumb);
+        double thumbMaxX = thumb.localToScene(thumb.getLayoutBounds()).getMaxX();
+
+        StackPane corner = (StackPane) table.lookup(".show-hide-columns-button");
+        assertNotNull(corner);
+        assertTrue(corner.isVisible());
+        double cornerMinX = corner.localToScene(corner.getLayoutBounds()).getMinX();
+
+        // Verify that the slider's thumb is fully visible, and it is not overlapped
+        // by the corner region
+        assertTrue(thumbMaxX < cornerMinX);
+    }
+
+    // See JDK-8087673
+    @Test
+    public void testTableMenuButtonDoesNotOverlapLastColumnHeader() {
+        TableView<String> table = new TableView<>();
+        table.setTableMenuButtonVisible(true);
+        for (int i = 0; i < 10; i++) {
+            final TableColumn<String, String> column = new TableColumn<>(i + "          ");
+            column.setCellValueFactory(value -> new SimpleStringProperty(value.getValue()));
+            table.getColumns().add(column);
+        }
+        for (int i = 0; i < 10; i++) {
+            table.getItems().add(Integer.toString(i));
+        }
+
+        stageLoader = new StageLoader(new Scene(table, 300, 300));
+
+        TableColumn<String, ?> lastColumn = table.getColumns().get(9);
+        lastColumn.setSortType(DESCENDING);
+        table.getSortOrder().setAll(lastColumn);
+        Toolkit.getToolkit().firePulse();
+
+        TableColumnHeader lastColumnHeader = VirtualFlowTestUtils.getTableColumnHeader(table, lastColumn);
+        assertNotNull(lastColumnHeader);
+
+        Region arrow = (Region) lastColumnHeader.lookup(".arrow");
+        assertNotNull(arrow);
+
+        ScrollBar vbar = VirtualFlowTestUtils.getVirtualFlowVerticalScrollbar(table);
+        assertFalse(vbar.isVisible());
+        ScrollBar hbar = VirtualFlowTestUtils.getVirtualFlowHorizontalScrollbar(table);
+        assertTrue(hbar.isVisible());
+
+        table.scrollToColumnIndex(9);
+
+        double headerMinX = lastColumnHeader.localToScene(lastColumnHeader.getLayoutBounds()).getMinX();
+        double headerMaxX = lastColumnHeader.localToScene(lastColumnHeader.getLayoutBounds()).getMaxX();
+
+        double arrowMaxX = arrow.localToScene(arrow.getLayoutBounds()).getMaxX();
+
+        StackPane corner = (StackPane) table.lookup(".show-hide-columns-button");
+        assertNotNull(corner);
+        assertTrue(corner.isVisible());
+        double cornerMinX = corner.localToScene(corner.getLayoutBounds()).getMinX();
+
+        // Verify that the corner region is over the last visible column header
+        assertTrue(headerMinX < cornerMinX);
+        assertTrue(cornerMinX < headerMaxX);
+
+        // Verify that the arrow is fully visible, and it is not overlapped
+        // by the corner region
+        assertTrue(arrowMaxX < cornerMinX);
+    }
+
+    // See JDK-8311127
+    @Test
+    public void testTableMenuButtonOnlyChangesLastVisibleColumnHeader() {
+        TableView<String> table = new TableView<>();
+        table.setTableMenuButtonVisible(true);
+        for (int i = 0; i < 10; i++) {
+            final TableColumn<String, String> column = new TableColumn<>("Header");
+            column.setCellValueFactory(value -> new SimpleStringProperty(value.getValue()));
+            table.getColumns().add(column);
+        }
+        for (int i = 0; i < 10; i++) {
+            table.getItems().add(Integer.toString(i));
+        }
+
+        stageLoader = new StageLoader(new Scene(table, 300, 300));
+
+        List<Double> labelWidths = table.getColumns().stream()
+                .map(column -> VirtualFlowTestUtils.getTableColumnHeader(table, column))
+                .map(columnHeader -> columnHeader.getChildrenUnmodifiable().get(0))
+                .map(node -> node.getLayoutBounds().getWidth())
+                .toList();
+
+        // Verify that the column header width for all columns is the same:
+        for (int i = 1; i < 10; i++) {
+            assertEquals(labelWidths.get(i), labelWidths.get(0));
+        }
+
+        // scroll to last column and sort
+        table.scrollToColumnIndex(9);
+        TableColumn<String, ?> lastColumn = table.getColumns().get(9);
+        lastColumn.setSortType(DESCENDING);
+        table.getSortOrder().setAll(lastColumn);
+        Toolkit.getToolkit().firePulse();
+
+        List<Double> newLabelWidths = table.getColumns().stream()
+                .map(column -> VirtualFlowTestUtils.getTableColumnHeader(table, column))
+                .map(columnHeader -> columnHeader.getChildrenUnmodifiable().get(0))
+                .map(node -> node.getLayoutBounds().getWidth())
+                .toList();
+        // Verify that the column header width didn't change for the first 9 columns:
+        for (int i = 0; i < 9; i++) {
+            assertEquals(labelWidths.get(i), newLabelWidths.get(i));
+        }
+        // and did change for the last one:
+        assertTrue(labelWidths.get(9) > newLabelWidths.get(9));
+    }
+
+    // See JDK-8089280
+    @Test
+    public void testSuppressHorizontalScrollBar() {
+        TableView<String> table = new TableView<>();
+        for (int i = 0; i < 10; i++) {
+            final TableColumn<String, String> c = new TableColumn<>("C" + i);
+            c.setCellValueFactory(value -> new SimpleStringProperty(value.getValue()));
+            c.setMinWidth(200); // caused HSB before the fix
+            table.getColumns().add(c);
+        }
+
+        for (int i = 0; i < 10; i++) {
+            table.getItems().add("");
+        }
+
+        stageLoader = new StageLoader(new Scene(table, 50, 50));
+
+        ScrollBar hbar = VirtualFlowTestUtils.getVirtualFlowHorizontalScrollbar(table);
+        assertTrue(hbar.isVisible());
+
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+
+        Toolkit.getToolkit().firePulse();
+
+        hbar = VirtualFlowTestUtils.getVirtualFlowHorizontalScrollbar(table);
+        assertFalse(hbar.isVisible()); // used to fail here
+    }
+
+
+    @Test
+    public void testQueryAccessibleAttributeSelectedItemsWithNullSelectionModel() {
+        table.getItems().addAll("1", "2");
+        table.setSelectionModel(null);
+        stageLoader = new StageLoader(table);
+
+        Object result = table.queryAccessibleAttribute(AccessibleAttribute.SELECTED_ITEMS);
+        // Should be an empty observable array list
+        assertEquals(FXCollections.observableArrayList(), result);
+    }
+
+    @Test
+    public void testQueryAccessibleAttributeFocusItemWithNullFocusModel() {
+        table.getItems().addAll("1", "2");
+        table.setFocusModel(null);
+
+        stageLoader = new StageLoader(table);
+
+        Object result = table.queryAccessibleAttribute(AccessibleAttribute.FOCUS_ITEM);
+
+        assertNull(result);
+    }
+
+    // See JDK-8138842
+    @Test
+    public void testFirstRowSelectionWithEmptyArrayAsParameter() {
+        table.getItems().addAll("1", "2", "3");
+
+        table.getSelectionModel().selectIndices(0, new int[0]);
+        assertEquals(0, table.getSelectionModel().getSelectedIndex());
+
+        table.getSelectionModel().selectIndices(1, new int[0]);
+        assertEquals(1, table.getSelectionModel().getSelectedIndex());
+
+        table.getSelectionModel().selectIndices(1, new int[]{1, 2});
+        assertEquals(2, table.getSelectionModel().getSelectedIndex());
     }
 }

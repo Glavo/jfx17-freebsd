@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,16 +25,16 @@
 
 
 #include "ChromeClientJava.h"
+#include "DataListSuggestionPicker.h"
+#include <WebCore/DateTimeChooser.h>
 #if ENABLE(INPUT_TYPE_COLOR)
 #include "ColorChooserJava.h"
 #endif
 #include <WebCore/ContextMenu.h>
-#if ENABLE(DATE_AND_TIME_INPUT_TYPES)
-#include <WebCore/DateTimeChooser.h>
-#endif
 #include "PopupMenuJava.h"
 #include "SearchPopupMenuJava.h"
 #include "WebPage.h"
+#include "Cursor.h"
 #include <WebCore/DocumentLoader.h>
 #include <WebCore/DragController.h>
 #include <WebCore/FileChooser.h>
@@ -213,17 +213,16 @@ ChromeClientJava::ChromeClientJava(const JLObject &webPage)
 
 void ChromeClientJava::chromeDestroyed()
 {
-    delete this;
 }
 
 #if ENABLE(INPUT_TYPE_COLOR)
-std::unique_ptr<ColorChooser> ChromeClientJava::createColorChooser(ColorChooserClient& client, const Color& initialColor)
+RefPtr<ColorChooser> ChromeClientJava::createColorChooser(ColorChooserClient& client, const Color& initialColor)
 {
-    return std::make_unique<ColorChooserJava>(m_webPage, &client, initialColor);
+    return adoptRef(new ColorChooserJava(m_webPage, &client, initialColor));
 }
 #endif
 
-FloatRect ChromeClientJava::windowRect()
+FloatRect ChromeClientJava::windowRect() const
 {
     using namespace ChromeClientJavaInternal;
     JNIEnv* env = WTF::GetJavaEnv();
@@ -254,7 +253,7 @@ void ChromeClientJava::setWindowRect(const FloatRect &r)
     WTF::CheckAndClearException(env);
 }
 
-FloatRect ChromeClientJava::pageRect()
+FloatRect ChromeClientJava::pageRect() const
 {
     using namespace ChromeClientJavaInternal;
     JNIEnv* env = WTF::GetJavaEnv();
@@ -300,7 +299,7 @@ void ChromeClientJava::unfocus()
     WTF::CheckAndClearException(env);
 }
 
-bool ChromeClientJava::canTakeFocus(FocusDirection)
+bool ChromeClientJava::canTakeFocus(FocusDirection) const
 {
     return true;
 }
@@ -313,7 +312,7 @@ void ChromeClientJava::takeFocus(FocusDirection direction)
 
     ASSERT(m_webPage);
 
-    env->CallVoidMethod(m_webPage, transferFocusMID, direction == FocusDirectionForward);
+    env->CallVoidMethod(m_webPage, transferFocusMID, direction == FocusDirection::Forward);
     WTF::CheckAndClearException(env);
 }
 
@@ -327,8 +326,18 @@ void ChromeClientJava::focusedFrameChanged(Frame*)
     notImplemented();
 }
 
-Page* ChromeClientJava::createWindow(
-    Frame&,
+void ChromeClientJava::rootFrameAdded(const LocalFrame&)
+{
+   notImplemented();
+}
+
+void ChromeClientJava::rootFrameRemoved(const LocalFrame&)
+{
+    notImplemented();
+}
+
+RefPtr<Page> ChromeClientJava::createWindow(
+    LocalFrame& frame, const String& openedMainFrameName,
     const WindowFeatures& features,
     const NavigationAction& na)
 {
@@ -346,15 +355,19 @@ Page* ChromeClientJava::createWindow(
     WTF::CheckAndClearException(env);
 
     if (!newWebPage) {
-        return 0;
+        return nullptr;
     }
 
     Page* p = WebPage::pageFromJObject(newWebPage);
-    p->mainFrame().loader().load(FrameLoadRequest(p->mainFrame(), ResourceRequest(na.url())));
-    return p;
+    auto localFrame =  dynamicDowncast<LocalFrame>(p->mainFrame());
+    //set opened frame name
+    if (!openedMainFrameName.isEmpty())
+        localFrame->tree().setSpecifiedName(AtomString(openedMainFrameName));
+    localFrame->loader().load(FrameLoadRequest(*localFrame, ResourceRequest(na.url())));
+    return RefPtr<Page>(p);
 }
 
-void ChromeClientJava::closeWindowSoon()
+void ChromeClientJava::closeWindow()
 {
     using namespace ChromeClientJavaInternal;
     JNIEnv* env = WTF::GetJavaEnv();
@@ -374,7 +387,7 @@ void ChromeClientJava::show()
     WTF::CheckAndClearException(env);
 }
 
-bool ChromeClientJava::canRunModal()
+bool ChromeClientJava::canRunModal() const
 {
     notImplemented();
     return false;
@@ -395,7 +408,7 @@ void ChromeClientJava::setToolbarsVisible(bool)
     notImplemented();
 }
 
-bool ChromeClientJava::toolbarsVisible()
+bool ChromeClientJava::toolbarsVisible() const
 {
     notImplemented();
     return false;
@@ -406,7 +419,7 @@ void ChromeClientJava::setStatusbarVisible(bool)
     notImplemented();
 }
 
-bool ChromeClientJava::statusbarVisible()
+bool ChromeClientJava::statusbarVisible() const
 {
     notImplemented();
     return false;
@@ -422,7 +435,7 @@ void ChromeClientJava::setScrollbarsVisible(bool v)
     WTF::CheckAndClearException(env);
 }
 
-bool ChromeClientJava::scrollbarsVisible()
+bool ChromeClientJava::scrollbarsVisible() const
 {
     notImplemented();
     return false;
@@ -433,7 +446,7 @@ void ChromeClientJava::setMenubarVisible(bool)
     notImplemented();
 }
 
-bool ChromeClientJava::menubarVisible()
+bool ChromeClientJava::menubarVisible() const
 {
     notImplemented();
     return false;
@@ -466,7 +479,7 @@ void ChromeClientJava::setCursorHiddenUntilMouseMoves(bool)
     notImplemented();
 }
 
-void ChromeClientJava::runJavaScriptAlert(Frame&, const String& text)
+void ChromeClientJava::runJavaScriptAlert(LocalFrame&, const String& text)
 {
     using namespace ChromeClientJavaInternal;
     JNIEnv* env = WTF::GetJavaEnv();
@@ -476,7 +489,7 @@ void ChromeClientJava::runJavaScriptAlert(Frame&, const String& text)
     WTF::CheckAndClearException(env);
 }
 
-bool ChromeClientJava::runJavaScriptConfirm(Frame&, const String& text)
+bool ChromeClientJava::runJavaScriptConfirm(LocalFrame&, const String& text)
 {
     using namespace ChromeClientJavaInternal;
     JNIEnv* env = WTF::GetJavaEnv();
@@ -488,7 +501,7 @@ bool ChromeClientJava::runJavaScriptConfirm(Frame&, const String& text)
     return jbool_to_bool(res);
 }
 
-bool ChromeClientJava::runJavaScriptPrompt(Frame&, const String& text,
+bool ChromeClientJava::runJavaScriptPrompt(LocalFrame&, const String& text,
                                            const String& defaultValue, String& result)
 {
     using namespace ChromeClientJavaInternal;
@@ -511,7 +524,7 @@ bool ChromeClientJava::runJavaScriptPrompt(Frame&, const String& text,
     return resb;
 }
 
-void ChromeClientJava::runOpenPanel(Frame&, FileChooser& fileChooser)
+void ChromeClientJava::runOpenPanel(LocalFrame&, FileChooser& fileChooser)
 {
     using namespace ChromeClientJavaInternal;
     JNIEnv* env = WTF::GetJavaEnv();
@@ -565,7 +578,7 @@ bool ChromeClientJava::canRunBeforeUnloadConfirmPanel()
     return result;
 }
 
-bool ChromeClientJava::runBeforeUnloadConfirmPanel(const String& message, Frame&)
+bool ChromeClientJava::runBeforeUnloadConfirmPanel(const String& message, LocalFrame&)
 {
     using namespace ChromeClientJavaInternal;
     JNIEnv* env = WTF::GetJavaEnv();
@@ -595,9 +608,9 @@ KeyboardUIMode ChromeClientJava::keyboardUIMode()
     return KeyboardAccessTabsToLinks;
 }
 
-void ChromeClientJava::mouseDidMoveOverElement(const HitTestResult& htr, unsigned, const String& toolTip, TextDirection)
+void ChromeClientJava::mouseDidMoveOverElement(const HitTestResult&, OptionSet<PlatformEventModifier>, const String& toolTip, TextDirection)
 {
-    static Node* mouseOverNode = 0;
+    /*static Node* mouseOverNode = 0;
     Element* urlElement = htr.URLElement();
     if (urlElement && isDraggableLink(*urlElement)) {
         Node* overNode = htr.innerNode();
@@ -608,10 +621,10 @@ void ChromeClientJava::mouseDidMoveOverElement(const HitTestResult& htr, unsigne
         }
     } else {
         if (mouseOverNode) {
-            setStatusbarText("");
+            setStatusbarText(""_s);
             mouseOverNode = 0;
         }
-    }
+    }*/ //REVISIT
     setToolTip(toolTip);
 }
 
@@ -629,7 +642,7 @@ void ChromeClientJava::setToolTip(const String& toolTip)
     WTF::CheckAndClearException(env);
 }
 
-void ChromeClientJava::print(Frame&)
+void ChromeClientJava::print(LocalFrame&, const StringWithDirection&)
 {
     using namespace ChromeClientJavaInternal;
     JNIEnv* env = WTF::GetJavaEnv();
@@ -645,7 +658,7 @@ void ChromeClientJava::print(Frame&)
     WTF::CheckAndClearException(env);
 }
 
-void ChromeClientJava::exceededDatabaseQuota(Frame&, const String&, DatabaseDetails) {
+void ChromeClientJava::exceededDatabaseQuota(LocalFrame&, const String&, DatabaseDetails) {
     notImplemented();
 }
 
@@ -660,7 +673,7 @@ void ChromeClientJava::reachedApplicationCacheOriginQuota(SecurityOrigin&, int64
     notImplemented();
 }
 
-void ChromeClientJava::attachRootGraphicsLayer(Frame&, GraphicsLayer* layer)
+void ChromeClientJava::attachRootGraphicsLayer(LocalFrame&, GraphicsLayer* layer)
 {
     WebPage::webPageFromJObject(m_webPage)->setRootChildLayer(layer);
 }
@@ -671,7 +684,7 @@ void ChromeClientJava::setNeedsOneShotDrawingSynchronization()
             ->setNeedsOneShotDrawingSynchronization();
 }
 
-void ChromeClientJava::scheduleRenderingUpdate()
+void ChromeClientJava::triggerRenderingUpdate()
 {
     WebPage::webPageFromJObject(m_webPage)->scheduleRenderingUpdate();
 }
@@ -710,6 +723,26 @@ IntPoint ChromeClientJava::screenToRootView(const IntPoint& p) const
             ptWindows,
             pointGetYMID))
     );
+}
+
+IntPoint ChromeClientJava::rootViewToScreen(const IntPoint& point) const
+{
+    return IntPoint();
+}
+
+bool ChromeClientJava::canShowDataListSuggestionLabels() const
+{
+    return false;
+}
+
+RefPtr<DateTimeChooser> ChromeClientJava::createDateTimeChooser(DateTimeChooserClient& client)
+{
+    return nullptr;
+}
+
+RefPtr<DataListSuggestionPicker> ChromeClientJava::createDataListSuggestionPicker(DataListSuggestionsClient& client)
+{
+    return nullptr;
 }
 
 IntRect ChromeClientJava::rootViewToScreen(const IntRect& r) const
@@ -767,7 +800,7 @@ PlatformPageClient ChromeClientJava::platformPageClient() const
     return hostWindow;
 }
 
-void ChromeClientJava::contentsSizeChanged(Frame&, const IntSize&) const
+void ChromeClientJava::contentsSizeChanged(LocalFrame&, const IntSize&) const
 {
     notImplemented();
 }
@@ -819,6 +852,10 @@ RefPtr<SearchPopupMenu> ChromeClientJava::createSearchPopupMenu(PopupMenuClient&
 RefPtr<Icon> ChromeClientJava::createIconForFiles(const Vector<String>& filenames)
 {
     return Icon::createIconForFiles(filenames);
+}
+
+void ChromeClientJava::requestCookieConsent(CompletionHandler<void(CookieConsentDecisionResult)>&&)
+{
 }
 
 void ChromeClientJava::didFinishLoadingImageForElement(WebCore::HTMLImageElement&)

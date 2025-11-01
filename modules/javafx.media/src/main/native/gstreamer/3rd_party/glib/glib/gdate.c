@@ -1,6 +1,8 @@
 /* GLIB - Library of useful routines for C programming
  * Copyright (C) 1995-1997  Peter Mattis, Spencer Kimball and Josh MacDonald
  *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
@@ -31,7 +33,7 @@
 
 #define DEBUG_MSG(x)    /* */
 #ifdef G_ENABLE_DEBUG
-/* #define DEBUG_MSG(args)  g_message args ; */
+/* #define DEBUG_MSG(args)      g_message args ; */
 #endif
 
 #include <time.h>
@@ -51,27 +53,36 @@
 #include "gtestutils.h"
 #include "gthread.h"
 #include "gunicode.h"
+#include "gutilsprivate.h"
 
 #ifdef G_OS_WIN32
 #include "garray.h"
 #endif
 
 /**
- * SECTION:date
- * @title: Date and Time Functions
- * @short_description: calendrical calculations and miscellaneous time stuff
+ * GDate:
+ * @julian_days: the Julian representation of the date
+ * @julian: this bit is set if @julian_days is valid
+ * @dmy: this is set if @day, @month and @year are valid
+ * @day: the day of the day-month-year representation of the date,
+ *   as a number between 1 and 31
+ * @month: the month of the day-month-year representation of the date,
+ *   as a number between 1 and 12
+ * @year: the year of the day-month-year representation of the date
  *
- * The #GDate data structure represents a day between January 1, Year 1,
+ * `GDate` is a struct for calendrical calculations.
+ *
+ * The `GDate` data structure represents a day between January 1, Year 1,
  * and sometime a few thousand years in the future (right now it will go
- * to the year 65535 or so, but g_date_set_parse() only parses up to the
- * year 8000 or so - just count on "a few thousand"). #GDate is meant to
+ * to the year 65535 or so, but [method@GLib.Date.set_parse] only parses up to the
+ * year 8000 or so - just count on "a few thousand"). `GDate` is meant to
  * represent everyday dates, not astronomical dates or historical dates
  * or ISO timestamps or the like. It extrapolates the current Gregorian
  * calendar forward and backward in time; there is no attempt to change
- * the calendar to match time periods or locations. #GDate does not store
+ * the calendar to match time periods or locations. `GDate` does not store
  * time information; it represents a day.
  *
- * The #GDate implementation has several nice features; it is only a
+ * The `GDate` implementation has several nice features; it is only a
  * 64-bit struct, so storing large numbers of dates is very efficient. It
  * can keep both a Julian and day-month-year representation of the date,
  * since some calculations are much easier with one representation or the
@@ -81,25 +92,23 @@
  * technical sense; technically, Julian dates count from the start of the
  * Julian period, Jan 1, 4713 BC).
  *
- * #GDate is simple to use. First you need a "blank" date; you can get a
- * dynamically allocated date from g_date_new(), or you can declare an
- * automatic variable or array and initialize it by
- * calling g_date_clear(). A cleared date is safe; it's safe to call
- * g_date_set_dmy() and the other mutator functions to initialize the
- * value of a cleared date. However, a cleared date is initially
- * invalid, meaning that it doesn't represent a day that exists.
- * It is undefined to call any of the date calculation routines on an
- * invalid date. If you obtain a date from a user or other
- * unpredictable source, you should check its validity with the
- * g_date_valid() predicate. g_date_valid() is also used to check for
- * errors with g_date_set_parse() and other functions that can
- * fail. Dates can be invalidated by calling g_date_clear() again.
+ * `GDate` is simple to use. First you need a "blank" date; you can get a
+ * dynamically allocated date from [ctor@GLib.Date.new], or you can declare an
+ * automatic variable or array and initialize it by calling [method@GLib.Date.clear].
+ * A cleared date is safe; it's safe to call [method@GLib.Date.set_dmy] and the other
+ * mutator functions to initialize the value of a cleared date. However, a cleared date
+ * is initially invalid, meaning that it doesn't represent a day that exists.
+ * It is undefined to call any of the date calculation routines on an invalid date.
+ * If you obtain a date from a user or other unpredictable source, you should check
+ * its validity with the [method@GLib.Date.valid] predicate. [method@GLib.Date.valid]
+ * is also used to check for errors with [method@GLib.Date.set_parse] and other functions
+ * that can fail. Dates can be invalidated by calling [method@GLib.Date.clear] again.
  *
- * It is very important to use the API to access the #GDate
- * struct. Often only the day-month-year or only the Julian
- * representation is valid. Sometimes neither is valid. Use the API.
+ * It is very important to use the API to access the `GDate` struct. Often only the
+ * day-month-year or only the Julian representation is valid. Sometimes neither is valid.
+ * Use the API.
  *
- * GLib also features #GDateTime which represents a precise time.
+ * GLib also features `GDateTime` which represents a precise time.
  */
 
 /**
@@ -115,7 +124,8 @@
  * @tv_usec: microseconds
  *
  * Represents a precise time, with seconds and microseconds.
- * Similar to the struct timeval returned by the gettimeofday()
+ *
+ * Similar to the struct timeval returned by the `gettimeofday()`
  * UNIX system call.
  *
  * GLib is attempting to unify around the use of 64-bit integers to
@@ -128,35 +138,13 @@
  */
 
 /**
- * GDate:
- * @julian_days: the Julian representation of the date
- * @julian: this bit is set if @julian_days is valid
- * @dmy: this is set if @day, @month and @year are valid
- * @day: the day of the day-month-year representation of the date,
- *     as a number between 1 and 31
- * @month: the day of the day-month-year representation of the date,
- *     as a number between 1 and 12
- * @year: the day of the day-month-year representation of the date
- *
- * Represents a day between January 1, Year 1 and a few thousand years in
- * the future. None of its members should be accessed directly.
- *
- * If the #GDate-struct is obtained from g_date_new(), it will be safe
- * to mutate but invalid and thus not safe for calendrical computations.
- *
- * If it's declared on the stack, it will contain garbage so must be
- * initialized with g_date_clear(). g_date_clear() makes the date invalid
- * but safe. An invalid date doesn't represent a day, it's "empty." A date
- * becomes valid after you set it to a Julian day or you set a day, month,
- * and year.
- */
-
-/**
  * GTime:
  *
  * Simply a replacement for `time_t`. It has been deprecated
  * since it is not equivalent to `time_t` on 64-bit platforms
- * with a 64-bit `time_t`. Unrelated to #GTimer.
+ * with a 64-bit `time_t`.
+ *
+ * Unrelated to #GTimer.
  *
  * Note that #GTime is defined to always be a 32-bit integer,
  * unlike `time_t` which may be 64-bit on some systems. Therefore,
@@ -165,6 +153,7 @@
  * function.
  *
  * Instead, do the following:
+ *
  * |[<!-- language="C" -->
  * time_t ttime;
  * GTime gtime;
@@ -191,7 +180,8 @@
  * GDateDay:
  *
  * Integer representing a day of the month; between 1 and 31.
- * #G_DATE_BAD_DAY represents an invalid day of the month.
+ *
+ * The %G_DATE_BAD_DAY value represents an invalid day of the month.
  */
 
 /**
@@ -210,16 +200,20 @@
  * @G_DATE_NOVEMBER: November
  * @G_DATE_DECEMBER: December
  *
- * Enumeration representing a month; values are #G_DATE_JANUARY,
- * #G_DATE_FEBRUARY, etc. #G_DATE_BAD_MONTH is the invalid value.
+ * Enumeration representing a month; values are %G_DATE_JANUARY,
+ * %G_DATE_FEBRUARY, etc. %G_DATE_BAD_MONTH is the invalid value.
  */
 
 /**
  * GDateYear:
  *
- * Integer representing a year; #G_DATE_BAD_YEAR is the invalid
- * value. The year must be 1 or higher; negative (BC) years are not
- * allowed. The year is represented with four digits.
+ * Integer type representing a year.
+ *
+ * The %G_DATE_BAD_YEAR value is the invalid value. The year
+ * must be 1 or higher; negative ([BCE](https://en.wikipedia.org/wiki/Common_Era))
+ * years are not allowed.
+ *
+ * The year is represented with four digits.
  */
 
 /**
@@ -233,8 +227,8 @@
  * @G_DATE_SATURDAY: Saturday
  * @G_DATE_SUNDAY: Sunday
  *
- * Enumeration representing a day of the week; #G_DATE_MONDAY,
- * #G_DATE_TUESDAY, etc. #G_DATE_BAD_WEEKDAY is an invalid weekday.
+ * Enumeration representing a day of the week; %G_DATE_MONDAY,
+ * %G_DATE_TUESDAY, etc. %G_DATE_BAD_WEEKDAY is an invalid weekday.
  */
 
 /**
@@ -279,11 +273,14 @@ g_date_new (void)
  * @month: month of the year
  * @year: year
  *
- * Like g_date_new(), but also sets the value of the date. Assuming the
- * day-month-year triplet you pass in represents an existing day, the
- * returned date will be valid.
+ * Create a new #GDate representing the given day-month-year triplet.
  *
- * Returns: a newly-allocated #GDate initialized with @day, @month, and @year
+ * The triplet you pass in must represent a valid date. Use g_date_valid_dmy()
+ * if needed to validate it. The returned #GDate is guaranteed to be non-%NULL
+ * and valid.
+ *
+ * Returns: (transfer full) (not nullable): a newly-allocated #GDate
+ *   initialized with @day, @month, and @year
  */
 GDate*
 g_date_new_dmy (GDateDay   day,
@@ -311,11 +308,14 @@ g_date_new_dmy (GDateDay   day,
  * g_date_new_julian:
  * @julian_day: days since January 1, Year 1
  *
- * Like g_date_new(), but also sets the value of the date. Assuming the
- * Julian day number you pass in is valid (greater than 0, less than an
- * unreasonably large number), the returned date will be valid.
+ * Create a new #GDate representing the given Julian date.
  *
- * Returns: a newly-allocated #GDate initialized with @julian_day
+ * The @julian_day you pass in must be valid. Use g_date_valid_julian() if
+ * needed to validate it. The returned #GDate is guaranteed to be non-%NULL and
+ * valid.
+ *
+ * Returns: (transfer full) (not nullable): a newly-allocated #GDate initialized
+ *   with @julian_day
  */
 GDate*
 g_date_new_julian (guint32 julian_day)
@@ -1206,6 +1206,22 @@ g_date_prepare_to_parse (const gchar      *str,
   g_date_fill_parse_tokens (str, pt);
 }
 
+static guint
+convert_twodigit_year (guint y)
+{
+  if (using_twodigit_years && y < 100)
+    {
+      guint two     =  twodigit_start_year % 100;
+      guint century = (twodigit_start_year / 100) * 100;
+
+      if (y < two)
+        century += 100;
+
+      y += century;
+    }
+  return y;
+}
+
 /**
  * g_date_set_parse:
  * @date: a #GDate to fill in
@@ -1300,19 +1316,11 @@ g_date_set_parse (GDate       *d,
 
         if (locale_era_adjust != 0)
           {
-      y += locale_era_adjust;
+             y += locale_era_adjust;
           }
-        else if (using_twodigit_years && y < 100)
-    {
-      guint two     =  twodigit_start_year % 100;
-      guint century = (twodigit_start_year / 100) * 100;
 
-      if (y < two)
-        century += 100;
-
-      y += century;
-    }
-      }
+          y = convert_twodigit_year (y);
+       }
       break;
             default:
               break;
@@ -1356,17 +1364,7 @@ g_date_set_parse (GDate       *d,
           day = pt.n[0] % 100;
           y   = pt.n[0]/10000;
 
-          /* FIXME move this into a separate function */
-          if (using_twodigit_years && y < 100)
-            {
-              guint two     =  twodigit_start_year % 100;
-              guint century = (twodigit_start_year / 100) * 100;
-
-              if (y < two)
-                century += 100;
-
-              y += century;
-            }
+          y   = convert_twodigit_year (y);
         }
     }
 
@@ -1386,6 +1384,33 @@ g_date_set_parse (GDate       *d,
     }
 #endif
   G_UNLOCK (g_date_global);
+}
+
+gboolean
+_g_localtime (time_t timet, struct tm *out_tm)
+{
+  gboolean success = TRUE;
+
+#ifdef HAVE_LOCALTIME_R
+  if (!localtime_r (&timet, out_tm))
+    success = FALSE;
+#else
+  {
+    struct tm *ptm = localtime (&timet);
+
+    if (ptm == NULL)
+      {
+        /* Happens at least in Microsoft's C library if you pass a
+         * negative time_t.
+         */
+        success = FALSE;
+      }
+    else
+      memcpy (out_tm, ptm, sizeof (struct tm));
+  }
+#endif
+
+  return success;
 }
 
 /**
@@ -1412,32 +1437,20 @@ g_date_set_time_t (GDate *date,
        time_t timet)
 {
   struct tm tm;
+  gboolean success;
 
   g_return_if_fail (date != NULL);
 
-#ifdef HAVE_LOCALTIME_R
-  localtime_r (&timet, &tm);
-#else
-  {
-    struct tm *ptm = localtime (&timet);
-
-    if (ptm == NULL)
-      {
-  /* Happens at least in Microsoft's C library if you pass a
-   * negative time_t. Use 2000-01-01 as default date.
-   */
-#ifndef G_DISABLE_CHECKS
-  g_return_if_fail_warning (G_LOG_DOMAIN, "g_date_set_time", "ptm != NULL");
-#endif
-
-  tm.tm_mon = 0;
-  tm.tm_mday = 1;
-  tm.tm_year = 100;
-      }
-    else
-      memcpy ((void *) &tm, (void *) ptm, sizeof(struct tm));
-  }
-#endif
+  success = _g_localtime (timet, &tm);
+  if (!success)
+    {
+      /* Still set a default date, 2000-01-01.
+       *
+       * We may assert out below. */
+      tm.tm_mon = 0;
+      tm.tm_mday = 1;
+      tm.tm_year = 100;
+    }
 
   date->julian = FALSE;
 
@@ -1448,6 +1461,11 @@ g_date_set_time_t (GDate *date,
   g_return_if_fail (g_date_valid_dmy (date->day, date->month, date->year));
 
   date->dmy    = TRUE;
+
+#ifndef G_DISABLE_CHECKS
+  if (!success)
+    g_return_if_fail_warning (G_LOG_DOMAIN, "g_date_set_time", "localtime() == NULL");
+#endif
 }
 
 
@@ -2227,7 +2245,7 @@ win32_strftime_helper (const GDate     *d,
                        const gchar     *format,
                        const struct tm *tm,
                        gchar           *s,
-               gsize            slen)
+                       gsize            slen)
 {
   SYSTEMTIME systemtime;
   TIME_ZONE_INFORMATION tzinfo;
@@ -2240,6 +2258,7 @@ win32_strftime_helper (const GDate     *d,
   gchar *convbuf;
   glong convlen = 0;
   gsize retval;
+  size_t format_len = strlen (format);
 
   systemtime.wYear = tm->tm_year + 1900;
   systemtime.wMonth = tm->tm_mon + 1;
@@ -2251,7 +2270,8 @@ win32_strftime_helper (const GDate     *d,
   systemtime.wMilliseconds = 0;
 
   lcid = GetThreadLocale ();
-  result = g_array_sized_new (FALSE, FALSE, sizeof (wchar_t), MAX (128, strlen (format) * 2));
+  result = g_array_sized_new (FALSE, FALSE, sizeof (wchar_t),
+                              (format_len <= 64) ? (guint) format_len * 2 : 128);
 
   p = format;
   while (*p)
@@ -2543,9 +2563,7 @@ win32_strftime_helper (const GDate     *d,
         break;
       case 'Z':
         n = GetTimeZoneInformation (&tzinfo);
-        if (n == TIME_ZONE_ID_UNKNOWN)
-    ;
-        else if (n == TIME_ZONE_ID_STANDARD)
+        if (n == TIME_ZONE_ID_UNKNOWN || n == TIME_ZONE_ID_STANDARD)
     g_array_append_vals (result, tzinfo.StandardName, wcslen (tzinfo.StandardName));
         else if (n == TIME_ZONE_ID_DAYLIGHT)
     g_array_append_vals (result, tzinfo.DaylightName, wcslen (tzinfo.DaylightName));
@@ -2581,7 +2599,8 @@ win32_strftime_helper (const GDate     *d,
       return 0;
     }
 
-  if (slen <= convlen)
+  g_assert (convlen >= 0);
+  if ((gsize) convlen >= slen)
     {
       /* Ensure only whole characters are copied into the buffer. */
       gchar *end = g_utf8_find_prev_char (convbuf, convbuf + slen);
@@ -2723,6 +2742,8 @@ g_date_strftime (gchar       *s,
     {
       g_warning (G_STRLOC "Error converting results of strftime to UTF-8: %s", error->message);
       g_error_free (error);
+
+      g_assert (convbuf == NULL);
 
       s[0] = '\0';
       return 0;

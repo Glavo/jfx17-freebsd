@@ -28,6 +28,7 @@
 
 #include <WebCore/Document.h>
 #include <WebCore/HTMLFormElement.h>
+#include <WebCore/ElementInlines.h>
 #include <WebCore/HTMLNames.h>
 #include <WebCore/HTMLObjectElement.h>
 #include <WebCore/JSExecState.h>
@@ -61,7 +62,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLObjectElementImpl_getCodeI
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLObjectElementImpl_setCodeImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::codeAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::codeAttr, AtomString{String(env, value)});
 }
 
 JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLObjectElementImpl_getAlignImpl(JNIEnv* env, jclass, jlong peer)
@@ -73,7 +74,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLObjectElementImpl_getAlign
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLObjectElementImpl_setAlignImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::alignAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::alignAttr, AtomString{String(env, value)});
 }
 
 JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLObjectElementImpl_getArchiveImpl(JNIEnv* env, jclass, jlong peer)
@@ -85,7 +86,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLObjectElementImpl_getArchi
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLObjectElementImpl_setArchiveImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::archiveAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::archiveAttr, AtomString{String(env, value)});
 }
 
 JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLObjectElementImpl_getBorderImpl(JNIEnv* env, jclass, jlong peer)
@@ -97,7 +98,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLObjectElementImpl_getBorde
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLObjectElementImpl_setBorderImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::borderAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::borderAttr, AtomString{String(env, value)});
 }
 
 JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLObjectElementImpl_getCodeBaseImpl(JNIEnv* env, jclass, jlong peer)
@@ -109,7 +110,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLObjectElementImpl_getCodeB
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLObjectElementImpl_setCodeBaseImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::codebaseAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::codebaseAttr, AtomString {String(env, value)});
 }
 
 JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLObjectElementImpl_getCodeTypeImpl(JNIEnv* env, jclass, jlong peer)
@@ -121,7 +122,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLObjectElementImpl_getCodeT
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLObjectElementImpl_setCodeTypeImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::codetypeAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::codetypeAttr, AtomString {String(env, value)});
 }
 
 JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLObjectElementImpl_getDataImpl(JNIEnv* env, jclass, jlong peer)
@@ -133,7 +134,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLObjectElementImpl_getDataI
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLObjectElementImpl_setDataImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::dataAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::dataAttr, AtomString {String(env, value)});
 }
 
 JNIEXPORT jboolean JNICALL Java_com_sun_webkit_dom_HTMLObjectElementImpl_getDeclareImpl(JNIEnv*, jclass, jlong peer)
@@ -157,7 +158,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLObjectElementImpl_getHeigh
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLObjectElementImpl_setHeightImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::heightAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::heightAttr, AtomString {String(env, value)});
 }
 
 JNIEXPORT jint JNICALL Java_com_sun_webkit_dom_HTMLObjectElementImpl_getHspaceImpl(JNIEnv*, jclass, jlong peer)
@@ -181,7 +182,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLObjectElementImpl_getNameI
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLObjectElementImpl_setNameImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::nameAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::nameAttr, AtomString {String(env, value)});
 }
 
 JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLObjectElementImpl_getStandbyImpl(JNIEnv* env, jclass, jlong peer)
@@ -193,7 +194,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLObjectElementImpl_getStand
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLObjectElementImpl_setStandbyImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::standbyAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::standbyAttr, AtomString {String(env, value)});
 }
 
 JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLObjectElementImpl_getTypeImpl(JNIEnv* env, jclass, jlong peer)
@@ -205,7 +206,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLObjectElementImpl_getTypeI
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLObjectElementImpl_setTypeImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::typeAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::typeAttr, AtomString {String(env, value)});
 }
 
 JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLObjectElementImpl_getUseMapImpl(JNIEnv* env, jclass, jlong peer)
@@ -217,7 +218,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLObjectElementImpl_getUseMa
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLObjectElementImpl_setUseMapImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::usemapAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::usemapAttr, AtomString {String(env, value)});
 }
 
 JNIEXPORT jint JNICALL Java_com_sun_webkit_dom_HTMLObjectElementImpl_getVspaceImpl(JNIEnv*, jclass, jlong peer)
@@ -241,7 +242,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLObjectElementImpl_getWidth
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLObjectElementImpl_setWidthImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::widthAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::widthAttr, AtomString {String(env, value)});
 }
 
 JNIEXPORT jboolean JNICALL Java_com_sun_webkit_dom_HTMLObjectElementImpl_getWillValidateImpl(JNIEnv*, jclass, jlong peer)
@@ -275,7 +276,7 @@ JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLObjectElementImpl_setCustomVa
     , jstring error)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setCustomValidity(String(env, error));
+    IMPL->setCustomValidity(AtomString{String(env, error)});
 }
 
 

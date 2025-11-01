@@ -79,7 +79,7 @@ typedef void (*xlinkNodeDetectFunc) (void *ctx, xmlNodePtr node);
  * This is the prototype for a simple link detection callback.
  */
 typedef void
-(*xlinkSimpleLinkFunk)  (void *ctx,
+(*xlinkSimpleLinkFunk)    (void *ctx,
              xmlNodePtr node,
              const xlinkHRef href,
              const xlinkRole role,
@@ -132,7 +132,7 @@ typedef void
  * This is the prototype for a extended link set detection callback.
  */
 typedef void
-(*xlinkExtendedLinkSetFunk) (void *ctx,
+(*xlinkExtendedLinkSetFunk)    (void *ctx,
                  xmlNodePtr node,
                  int nbLocators,
                  const xlinkHRef *hrefs,
@@ -160,24 +160,24 @@ struct _xlinkHandler {
  * detection callbacks.
  */
 
-XMLPUBFUN xlinkNodeDetectFunc XMLCALL
-        xlinkGetDefaultDetect   (void);
-XMLPUBFUN void XMLCALL
-        xlinkSetDefaultDetect   (xlinkNodeDetectFunc func);
+XMLPUBFUN xlinkNodeDetectFunc
+        xlinkGetDefaultDetect    (void);
+XMLPUBFUN void
+        xlinkSetDefaultDetect    (xlinkNodeDetectFunc func);
 
 /*
  * Routines to set/get the default handlers.
  */
-XMLPUBFUN xlinkHandlerPtr XMLCALL
-        xlinkGetDefaultHandler  (void);
-XMLPUBFUN void XMLCALL
-        xlinkSetDefaultHandler  (xlinkHandlerPtr handler);
+XMLPUBFUN xlinkHandlerPtr
+        xlinkGetDefaultHandler    (void);
+XMLPUBFUN void
+        xlinkSetDefaultHandler    (xlinkHandlerPtr handler);
 
 /*
  * Link detection module itself.
  */
-XMLPUBFUN xlinkType XMLCALL
-        xlinkIsLink     (xmlDocPtr doc,
+XMLPUBFUN xlinkType
+        xlinkIsLink        (xmlDocPtr doc,
                      xmlNodePtr node);
 
 #ifdef __cplusplus

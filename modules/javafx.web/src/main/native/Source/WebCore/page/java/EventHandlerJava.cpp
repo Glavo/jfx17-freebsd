@@ -36,6 +36,7 @@
 #include "PlatformKeyboardEvent.h"
 #include "Widget.h"
 #include "DataTransfer.h"
+#include "HandleUserInputEventResult.h"
 
 namespace WebCore {
 
@@ -50,7 +51,7 @@ bool EventHandler::eventActivatedView(const PlatformMouseEvent &) const
     return false;
 }
 
-bool EventHandler::passMouseMoveEventToSubframe(MouseEventWithHitTestResults& mouseEventAndResult, Frame& subframe, HitTestResult* hitTestResult)
+HandleUserInputEventResult EventHandler::passMouseMoveEventToSubframe(MouseEventWithHitTestResults& mouseEventAndResult, LocalFrame& subframe, HitTestResult* hitTestResult)
 {
     if (m_mouseDownMayStartDrag && !m_mouseDownWasInSubframe)
         return false;

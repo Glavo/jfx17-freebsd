@@ -18,6 +18,8 @@
  *
  */
 
+ #pragma once
+
 #ifndef Icon_h
 #define Icon_h
 
@@ -26,11 +28,19 @@
 #include <wtf/RefPtr.h>
 #include <wtf/RetainPtr.h>
 
-#if PLATFORM(IOS_FAMILY)
+#if PLATFORM(COCOA)
 #include "NativeImage.h"
+#include "PlatformImage.h"
 #include <CoreGraphics/CoreGraphics.h>
-#elif PLATFORM(MAC)
+
+#if USE(APPKIT)
 OBJC_CLASS NSImage;
+using CocoaImage = NSImage;
+#else
+OBJC_CLASS UIImage;
+using CocoaImage = UIImage;
+#endif
+
 #elif PLATFORM(WIN)
 typedef struct HICON__* HICON;
 #elif PLATFORM(JAVA)
@@ -42,6 +52,7 @@ namespace WebCore {
 
 class GraphicsContext;
 class FloatRect;
+class NativeImage;
 
 class Icon : public RefCounted<Icon> {
 public:
@@ -55,9 +66,17 @@ public:
     static Ref<Icon> create(HICON hIcon) { return adoptRef(*new Icon(hIcon)); }
 #endif
 
-#if PLATFORM(IOS_FAMILY)
-    // FIXME: Make this work for non-iOS ports and remove the PLATFORM(IOS_FAMILY)-guard.
-    WEBCORE_EXPORT static RefPtr<Icon> createIconForImage(const NativeImagePtr&);
+#if PLATFORM(GTK)
+    WEBCORE_EXPORT static RefPtr<Icon> create(GIcon*);
+
+    GIcon* icon() const { return m_icon.get(); };
+#endif
+
+#if PLATFORM(COCOA)
+    WEBCORE_EXPORT static RefPtr<Icon> create(CocoaImage *);
+    WEBCORE_EXPORT static RefPtr<Icon> create(PlatformImagePtr&&);
+
+    RetainPtr<CocoaImage> image() const { return m_image; };
 #endif
 
 #if PLATFORM(MAC)
@@ -66,12 +85,9 @@ public:
 #endif
 
 private:
-#if PLATFORM(IOS_FAMILY)
-    Icon(const RetainPtr<CGImageRef>&);
-    RetainPtr<CGImageRef> m_cgImage;
-#elif PLATFORM(MAC)
-    Icon(NSImage*);
-    RetainPtr<NSImage> m_nsImage;
+#if PLATFORM(COCOA)
+    Icon(CocoaImage *);
+    RetainPtr<CocoaImage> m_image;
 #elif PLATFORM(WIN)
     Icon(HICON);
     HICON m_hIcon;

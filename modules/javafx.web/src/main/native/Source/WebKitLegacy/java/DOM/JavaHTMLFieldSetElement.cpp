@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,9 @@
 
 #undef IMPL
 
-
+#include <WebCore/Document.h>
 #include <WebCore/HTMLFieldSetElement.h>
+#include <WebCore/ElementInlines.h>
 #include <WebCore/HTMLFormElement.h>
 #include <WebCore/HTMLNames.h>
 #include <WebCore/JSExecState.h>
@@ -66,13 +67,14 @@ JNIEXPORT jlong JNICALL Java_com_sun_webkit_dom_HTMLFieldSetElementImpl_getFormI
 JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLFieldSetElementImpl_getNameImpl(JNIEnv* env, jclass, jlong peer)
 {
     WebCore::JSMainThreadNullState state;
+
     return JavaReturn<String>(env, IMPL->getNameAttribute());
 }
 
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLFieldSetElementImpl_setNameImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::nameAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::nameAttr, AtomString {String(env, value)});
 }
 
 JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLFieldSetElementImpl_getTypeImpl(JNIEnv* env, jclass, jlong peer)
@@ -106,7 +108,7 @@ JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLFieldSetElementImpl_setCustom
     , jstring error)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setCustomValidity(String(env, error));
+    IMPL->setCustomValidity(AtomString {String(env, error)});
 }
 
 

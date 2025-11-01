@@ -61,6 +61,7 @@
 #endif
 
 #include <gst/gst.h>
+#include "gst/glib-compat-private.h"
 
 /* Index signals and args */
 enum
@@ -271,7 +272,7 @@ gst_index_get_property (GObject * object, guint prop_id,
 static GstIndexGroup *
 gst_index_group_new (guint groupnum)
 {
-  GstIndexGroup *indexgroup = g_slice_new (GstIndexGroup);
+  GstIndexGroup *indexgroup = g_new (GstIndexGroup, 1);
 
   indexgroup->groupnum = groupnum;
   indexgroup->entries = NULL;
@@ -286,7 +287,7 @@ gst_index_group_new (guint groupnum)
 static void
 gst_index_group_free (GstIndexGroup * group)
 {
-  g_slice_free (GstIndexGroup, group);
+  g_free (group);
 }
 
 /* do not resurrect this, add a derived dummy index class instead */
@@ -527,7 +528,7 @@ gst_index_set_resolver_full (GstIndex * index, GstIndexResolver resolver,
 GstIndexEntry *
 gst_index_entry_copy (GstIndexEntry * entry)
 {
-  GstIndexEntry *new_entry = g_slice_new (GstIndexEntry);
+  GstIndexEntry *new_entry = g_new (GstIndexEntry, 1);
 
   memcpy (new_entry, entry, sizeof (GstIndexEntry));
   return new_entry;
@@ -561,7 +562,7 @@ gst_index_entry_free (GstIndexEntry * entry)
       break;
   }
 
-  g_slice_free (GstIndexEntry, entry);
+  g_free (entry);
 }
 
 #if 0
@@ -591,7 +592,7 @@ gst_index_add_format (GstIndex * index, gint id, GstFormat format)
   if (!GST_INDEX_IS_WRITABLE (index) || id == -1)
     return NULL;
 
-  entry = g_slice_new (GstIndexEntry);
+  entry = g_new (GstIndexEntry, 1);
   entry->type = GST_INDEX_ENTRY_FORMAT;
   entry->id = id;
   entry->data.format.format = format;
@@ -626,7 +627,7 @@ gst_index_add_id (GstIndex * index, gint id, gchar * description)
   if (!GST_INDEX_IS_WRITABLE (index) || id == -1)
     return NULL;
 
-  entry = g_slice_new (GstIndexEntry);
+  entry = g_new (GstIndexEntry, 1);
   entry->type = GST_INDEX_ENTRY_ID;
   entry->id = id;
   entry->data.id.description = description;
@@ -741,7 +742,7 @@ gst_index_get_writer_id (GstIndex * index, GstObject * writer, gint * id)
     if (!entry) {
       /* index is probably not writable, make an entry anyway
        * to keep it in our cache */
-      entry = g_slice_new (GstIndexEntry);
+      entry = g_new (GstIndexEntry, 1);
       entry->type = GST_INDEX_ENTRY_ID;
       entry->id = *id;
       entry->data.id.description = writer_string;
@@ -793,12 +794,12 @@ gst_index_add_associationv (GstIndex * index, gint id,
   if (!GST_INDEX_IS_WRITABLE (index) || id == -1)
     return NULL;
 
-  entry = g_slice_new (GstIndexEntry);
+  entry = g_new (GstIndexEntry, 1);
 
   entry->type = GST_INDEX_ENTRY_ASSOCIATION;
   entry->id = id;
   entry->data.assoc.flags = flags;
-  entry->data.assoc.assocs = g_memdup (list, sizeof (GstIndexAssociation) * n);
+  entry->data.assoc.assocs = g_memdup2 (list, sizeof (GstIndexAssociation) * n);
   entry->data.assoc.nassocs = n;
 
   gst_index_add_entry (index, entry);

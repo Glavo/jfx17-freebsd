@@ -28,7 +28,7 @@
 
 #define GST_TYPE_AUDIO_CONVERT (gst_audio_convert_get_type())
 G_DECLARE_FINAL_TYPE (GstAudioConvert, gst_audio_convert,
-    GST, AUDIO_CONVERT, GstBaseTransform)
+    GST, AUDIO_CONVERT, GstBaseTransform);
 
 /**
  * GstAudioConvert:
@@ -41,6 +41,7 @@ struct _GstAudioConvert
 
   /* properties */
   GstAudioDitherMethod dither;
+  guint dither_threshold;
   GstAudioNoiseShapingMethod ns;
   GValue mix_matrix;
   gboolean mix_matrix_is_set;
@@ -49,5 +50,7 @@ struct _GstAudioConvert
   GstAudioInfo out_info;
   GstAudioConverter *convert;
 };
+
+GST_ELEMENT_REGISTER_DECLARE (audioconvert);
 
 #endif /* __GST_AUDIO_CONVERT_H__ */

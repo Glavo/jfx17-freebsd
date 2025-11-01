@@ -24,21 +24,37 @@
  */
 
 #include "config.h"
+#if PLATFORM(JAVA)
 #include "SocketProvider.h"
-
+#include "WebTransportSession.h"
+#include <wtf/CompletionHandler.h>
 #include "SocketStreamHandleImpl.h"
 #include "ThreadableWebSocketChannel.h"
 
 namespace WebCore {
 
-Ref<SocketStreamHandle> SocketProvider::createSocketStreamHandle(const URL& url, SocketStreamHandleClient& client, PAL::SessionID sessionID, Page* page, const String& credentialPartition, const StorageSessionProvider* provider)
+#if PLATFORM(JAVA)
+Ref<SocketStreamHandle> SocketProvider::createSocketStreamHandle(const URL& url, SocketStreamHandleClient& client, WebSocketIdentifier, PAL::SessionID sessionID, Page* page, const String& credentialPartition, const StorageSessionProvider* provider)
 {
     return SocketStreamHandleImpl::create(url, client, sessionID, page, credentialPartition, { }, provider);
 }
+#else
+Ref<SocketStreamHandle> SocketProvider::createSocketStreamHandle(const URL& url, SocketStreamHandleClient& client, WebSocketIdentifier, PAL::SessionID sessionID, const String& credentialPartition, const StorageSessionProvider* provider)
+{
+    static const auto shouldAcceptInsecureCertificates = false;
+    return SocketStreamHandleImpl::create(url, client, sessionID, credentialPartition, { }, provider, shouldAcceptInsecureCertificates);
+}
+#endif
 
 RefPtr<ThreadableWebSocketChannel> SocketProvider::createWebSocketChannel(Document&, WebSocketChannelClient&)
 {
     return nullptr;
 }
-
+#if PLATFORM(JAVA)
+Ref<WebCore::WebTransportSessionPromise> SocketProvider::initializeWebTransportSession(WebCore::ScriptExecutionContext&, WebCore::WebTransportSessionClient&, const URL&)
+{
+    return WebCore::WebTransportSessionPromise::createAndReject();
 }
+#endif
+}
+#endif

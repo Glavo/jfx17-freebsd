@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Apple Inc. All rights reserved.
+ * Copyright (C) 2015-2024 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,10 +27,9 @@
 
 #ifndef UIScriptContext_h
 #define UIScriptContext_h
-
 #include <JavaScriptCore/JSRetainPtr.h>
 #include <wtf/HashMap.h>
-#include <wtf/RefPtr.h>
+#include <wtf/Ref.h>
 #include <wtf/text/WTFString.h>
 
 namespace WebCore {
@@ -43,6 +42,7 @@ class UIScriptController;
 
 class UIScriptContextDelegate {
 public:
+
     virtual void uiScriptDidComplete(const String& result, unsigned callbackID) = 0;
 };
 
@@ -65,6 +65,9 @@ typedef enum  {
     CallbackTypeDidDismissContextMenu,
     CallbackTypeWillCreateNewPage,
     CallbackTypeWindowTapRecognized,
+    CallbackTypeDidShowContactPicker,
+    CallbackTypeDidHideContactPicker,
+    CallbackTypeWillStartInputSession,
     CallbackTypeNonPersistent = firstNonPersistentCallbackID
 } CallbackType;
 
@@ -72,7 +75,10 @@ class UIScriptContext {
     WTF_MAKE_FAST_ALLOCATED;
     WTF_MAKE_NONCOPYABLE(UIScriptContext);
 public:
-    UIScriptContext(UIScriptContextDelegate&);
+    using UIScriptControllerFactory = Ref<UIScriptController> (*)(UIScriptContext&);
+
+    UIScriptContext(UIScriptContextDelegate&, UIScriptControllerFactory);
+
     ~UIScriptContext();
 
     void runUIScript(const String& script, unsigned scriptCallbackID);
@@ -80,7 +86,7 @@ public:
 
     // For one-shot tasks callbacks.
     unsigned prepareForAsyncTask(JSValueRef taskCallback, CallbackType);
-    void asyncTaskComplete(unsigned taskCallbackID);
+    void asyncTaskComplete(unsigned taskCallbackID, std::initializer_list<JSValueRef> arguments = { });
 
     // For persistent callbacks.
     unsigned registerCallback(JSValueRef taskCallback, CallbackType);
@@ -95,6 +101,7 @@ public:
     JSGlobalContextRef jsContext() const { return m_context.get(); }
 
 private:
+
     JSRetainPtr<JSGlobalContextRef> m_context;
 
     bool hasOutstandingAsyncTasks() const { return !m_callbacks.isEmpty(); }
@@ -117,5 +124,4 @@ private:
 };
 
 }
-
 #endif // UIScriptContext_h

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,8 +27,10 @@
 
 #include <wtf/RefPtr.h>
 
+#include <WebCore/AddEventListenerOptions.h>
 #include <WebCore/Document.h>
 #include <WebCore/Element.h>
+#include <WebCore/ElementInlines.h>
 #include <WebCore/Event.h>
 #include <WebCore/EventListener.h>
 #include <WebCore/EventTarget.h>
@@ -67,7 +69,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_NodeImpl_getNodeValueImpl(JNIE
 }
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_NodeImpl_setNodeValueImpl(JNIEnv* env, jclass, jlong peer, jstring value) {
     WebCore::JSMainThreadNullState state;
-    IMPL->setNodeValue(String(env, value));
+    IMPL->setNodeValue(AtomString{String(env, value)});
 }
 
 JNIEXPORT jshort JNICALL Java_com_sun_webkit_dom_NodeImpl_getNodeTypeImpl(JNIEnv*, jclass, jlong peer) {
@@ -121,7 +123,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_NodeImpl_getPrefixImpl(JNIEnv*
 }
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_NodeImpl_setPrefixImpl(JNIEnv* env, jclass, jlong peer, jstring value) {
     WebCore::JSMainThreadNullState state;
-    IMPL->setPrefix(String(env, value));
+    IMPL->setPrefix(AtomString {String(env, value)});
 }
 
 JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_NodeImpl_getLocalNameImpl(JNIEnv* env, jclass, jlong peer) {
@@ -131,7 +133,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_NodeImpl_getLocalNameImpl(JNIE
 
 JNIEXPORT jlong JNICALL Java_com_sun_webkit_dom_NodeImpl_getAttributesImpl(JNIEnv* env, jclass, jlong peer) {
     WebCore::JSMainThreadNullState state;
-    return JavaReturn<NamedNodeMap>(env, WTF::getPtr(IMPL->attributes()));
+    return JavaReturn<NamedNodeMap>(env, WTF::getPtr(IMPL->attributesMap()));
 }
 
 JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_NodeImpl_getBaseURIImpl(JNIEnv* env, jclass, jlong peer) {
@@ -241,15 +243,6 @@ JNIEXPORT void JNICALL Java_com_sun_webkit_dom_NodeImpl_normalizeImpl(JNIEnv*, j
 }
 
 
-JNIEXPORT jboolean JNICALL Java_com_sun_webkit_dom_NodeImpl_isSupportedImpl(JNIEnv* env, jclass, jlong
-    , jstring feature
-    , jstring version)
-{
-    WebCore::JSMainThreadNullState state;
-    return SVGTests::hasFeatureForLegacyBindings(String(env, feature), String(env, version));
-}
-
-
 JNIEXPORT jboolean JNICALL Java_com_sun_webkit_dom_NodeImpl_hasAttributesImpl(JNIEnv*, jclass, jlong peer)
 {
     WebCore::JSMainThreadNullState state;
@@ -277,7 +270,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_NodeImpl_lookupPrefixImpl(JNIE
     , jstring namespaceURI)
 {
     WebCore::JSMainThreadNullState state;
-    return JavaReturn<String>(env, IMPL->lookupPrefix(String(env, namespaceURI)));
+    return JavaReturn<String>(env, IMPL->lookupPrefix(AtomString {String(env, namespaceURI)}));
 }
 
 
@@ -285,7 +278,7 @@ JNIEXPORT jboolean JNICALL Java_com_sun_webkit_dom_NodeImpl_isDefaultNamespaceIm
     , jstring namespaceURI)
 {
     WebCore::JSMainThreadNullState state;
-    return IMPL->isDefaultNamespace(String(env, namespaceURI));
+    return IMPL->isDefaultNamespace(AtomString {String(env, namespaceURI)});
 }
 
 
@@ -293,7 +286,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_NodeImpl_lookupNamespaceURIImp
     , jstring prefix)
 {
     WebCore::JSMainThreadNullState state;
-    return JavaReturn<String>(env, IMPL->lookupNamespaceURI(String(env, prefix)));
+    return JavaReturn<String>(env, IMPL->lookupNamespaceURI(AtomString {String(env, prefix)}));
 }
 
 
@@ -321,7 +314,7 @@ JNIEXPORT void JNICALL Java_com_sun_webkit_dom_NodeImpl_addEventListenerImpl(JNI
     , jboolean useCapture)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->addEventListenerForBindings(String(env, type)
+    IMPL->addEventListenerForBindings(AtomString {String(env, type)}
             , static_cast<EventListener*>(jlong_to_ptr(listener))
             , static_cast<bool>(useCapture));
 }
@@ -333,7 +326,7 @@ JNIEXPORT void JNICALL Java_com_sun_webkit_dom_NodeImpl_removeEventListenerImpl(
     , jboolean useCapture)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->removeEventListenerForBindings(String(env, type)
+    IMPL->removeEventListenerForBindings(AtomString {String(env, type)}
             , static_cast<EventListener*>(jlong_to_ptr(listener))
             , static_cast<bool>(useCapture));
 }

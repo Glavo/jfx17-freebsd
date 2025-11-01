@@ -2,6 +2,8 @@
  * Copyright (C) 1995-1998  Peter Mattis, Spencer Kimball and Josh MacDonald
  * Copyright (C) 1998-1999  Tor Lillqvist
  *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
@@ -31,6 +33,7 @@
 
 #include "glibconfig.h"
 
+#include <glib/gstdio.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -39,6 +42,7 @@
 #include <fcntl.h>
 
 #define STRICT          /* Strict typing, please */
+#include <winsock2.h>
 #include <windows.h>
 #undef STRICT
 #ifndef G_WITH_CYGWIN
@@ -107,17 +111,20 @@ g_win32_ftruncate (gint  fd,
 gchar *
 g_win32_getlocale (void)
 {
+  gchar *result;
   LCID lcid;
   LANGID langid;
   const gchar *ev;
   gint primary, sub;
-  char iso639[10];
-  char iso3166[10];
+  WCHAR iso639[10];
+  gchar *iso639_utf8;
+  WCHAR iso3166[10];
+  gchar *iso3166_utf8;
   const gchar *script = NULL;
 
   /* Let the user override the system settings through environment
-   * variables, as on POSIX systems. Note that in GTK+ applications
-   * since GTK+ 2.10.7 setting either LC_ALL or LANG also sets the
+   * variables, as on POSIX systems. Note that in GTK applications
+   * since GTK 2.10.7 setting either LC_ALL or LANG also sets the
    * Win32 locale and C library locale through code in gtkmain.c.
    */
   if (((ev = g_getenv ("LC_ALL")) != NULL && ev[0] != '\0')
@@ -127,8 +134,8 @@ g_win32_getlocale (void)
 
   lcid = GetThreadLocale ();
 
-  if (!GetLocaleInfo (lcid, LOCALE_SISO639LANGNAME, iso639, sizeof (iso639)) ||
-      !GetLocaleInfo (lcid, LOCALE_SISO3166CTRYNAME, iso3166, sizeof (iso3166)))
+  if (!GetLocaleInfoW (lcid, LOCALE_SISO639LANGNAME, iso639, sizeof (iso639)) ||
+      !GetLocaleInfoW (lcid, LOCALE_SISO3166CTRYNAME, iso3166, sizeof (iso3166)))
     return g_strdup ("C");
 
   /* Strip off the sorting rules, keep only the language part.  */
@@ -173,7 +180,16 @@ g_win32_getlocale (void)
   }
       break;
     }
-  return g_strconcat (iso639, "_", iso3166, script, NULL);
+
+  iso639_utf8 = g_utf16_to_utf8 (iso639, -1, NULL, NULL, NULL);
+  iso3166_utf8 = g_utf16_to_utf8 (iso3166, -1, NULL, NULL, NULL);
+
+  result = g_strconcat (iso639_utf8, "_", iso3166_utf8, script, NULL);
+
+  g_free (iso3166_utf8);
+  g_free (iso639_utf8);
+
+  return result;
 }
 
 /**
@@ -381,7 +397,7 @@ get_package_directory_from_module (const gchar *module_name)
  *
  * It is strongly recommended that packagers of GLib-using libraries
  * for Windows do not store installation paths in the Registry to be
- * used by this function as that interfers with having several
+ * used by this function as that interferes with having several
  * parallel installations of the library. Enabling multiple
  * installations of different versions of some GLib-using library, or
  * GLib itself, is desirable for various reasons.
@@ -479,6 +495,48 @@ G_GNUC_END_IGNORE_DEPRECATIONS
   return dirname;
 }
 
+/*
+ * private API to call Windows's RtlGetVersion(), which may need to be called
+ * via GetProcAddress()
+ */
+gboolean
+_g_win32_call_rtl_version (OSVERSIONINFOEXW *info)
+{
+  static OSVERSIONINFOEXW result;
+  static gsize inited = 0;
+
+  g_return_val_if_fail (info != NULL, FALSE);
+
+  if (g_once_init_enter (&inited))
+    {
+#if WINAPI_FAMILY != MODERN_API_FAMILY
+      /* For non-modern UI Apps, use the LoadLibraryW()/GetProcAddress() thing */
+      typedef NTSTATUS (WINAPI fRtlGetVersion) (PRTL_OSVERSIONINFOEXW);
+
+      fRtlGetVersion *RtlGetVersion;
+      HMODULE hmodule = LoadLibraryW (L"ntdll.dll");
+      g_return_val_if_fail (hmodule != NULL, FALSE);
+
+      RtlGetVersion = (fRtlGetVersion *) GetProcAddress (hmodule, "RtlGetVersion");
+      g_return_val_if_fail (RtlGetVersion != NULL, FALSE);
+#endif
+
+      memset (&result, 0, sizeof (OSVERSIONINFOEXW));
+      result.dwOSVersionInfoSize = sizeof (OSVERSIONINFOEXW);
+
+      RtlGetVersion (&result);
+
+#if WINAPI_FAMILY != MODERN_API_FAMILY
+      FreeLibrary (hmodule);
+#endif
+      g_once_init_leave (&inited, TRUE);
+    }
+
+  *info = result;
+
+  return TRUE;
+}
+
 /**
  * g_win32_check_windows_version:
  * @major: major version of Windows
@@ -514,41 +572,25 @@ g_win32_check_windows_version (const gint major,
   gboolean is_ver_checked = FALSE;
   gboolean is_type_checked = FALSE;
 
-#if WINAPI_FAMILY != MODERN_API_FAMILY
-  /* For non-modern UI Apps, use the LoadLibraryW()/GetProcAddress() thing */
-  typedef NTSTATUS (WINAPI fRtlGetVersion) (PRTL_OSVERSIONINFOEXW);
-
-  fRtlGetVersion *RtlGetVersion;
-  HMODULE hmodule;
-#endif
   /* We Only Support Checking for XP or later */
-  g_return_val_if_fail (major >= 5 && (major <=6 || major == 10), FALSE);
+  g_return_val_if_fail (major >= 5 && (major <= 6 || major == 10), FALSE);
   g_return_val_if_fail ((major >= 5 && minor >= 1) || major >= 6, FALSE);
 
   /* Check for Service Pack Version >= 0 */
   g_return_val_if_fail (spver >= 0, FALSE);
 
-#if WINAPI_FAMILY != MODERN_API_FAMILY
-  hmodule = LoadLibraryW (L"ntdll.dll");
-  g_return_val_if_fail (hmodule != NULL, FALSE);
-
-  RtlGetVersion = (fRtlGetVersion *) GetProcAddress (hmodule, "RtlGetVersion");
-  g_return_val_if_fail (RtlGetVersion != NULL, FALSE);
-#endif
-
-  memset (&osverinfo, 0, sizeof (OSVERSIONINFOEXW));
-  osverinfo.dwOSVersionInfoSize = sizeof (OSVERSIONINFOEXW);
-  RtlGetVersion (&osverinfo);
+  if (!_g_win32_call_rtl_version (&osverinfo))
+    return FALSE;
 
   /* check the OS and Service Pack Versions */
-  if (osverinfo.dwMajorVersion > major)
+  if (osverinfo.dwMajorVersion > (DWORD) major)
     is_ver_checked = TRUE;
-  else if (osverinfo.dwMajorVersion == major)
+  else if (osverinfo.dwMajorVersion == (DWORD) major)
     {
-      if (osverinfo.dwMinorVersion > minor)
+      if (osverinfo.dwMinorVersion > (DWORD) minor)
         is_ver_checked = TRUE;
-      else if (osverinfo.dwMinorVersion == minor)
-        if (osverinfo.wServicePackMajor >= spver)
+      else if (osverinfo.dwMinorVersion == (DWORD) minor)
+        if (osverinfo.wServicePackMajor >= (DWORD) spver)
           is_ver_checked = TRUE;
     }
 
@@ -575,10 +617,6 @@ g_win32_check_windows_version (const gint major,
             break;
         }
     }
-
-#if WINAPI_FAMILY != MODERN_API_FAMILY
-  FreeLibrary (hmodule);
-#endif
 
   return is_ver_checked && is_type_checked;
 }
@@ -773,8 +811,6 @@ g_win32_get_command_line (void)
   return result;
 }
 
-#ifdef G_OS_WIN32
-
 /* Binary compatibility versions. Not for newly compiled code. */
 
 _GLIB_EXTERN gchar *g_win32_get_package_installation_directory_utf8    (const gchar *package,
@@ -804,10 +840,6 @@ G_GNUC_BEGIN_IGNORE_DEPRECATIONS
                                                         subdir);
 G_GNUC_END_IGNORE_DEPRECATIONS
 }
-
-#endif
-
-#ifdef G_OS_WIN32
 
 /* This function looks up two environment
  * variables, G_WIN32_ALLOC_CONSOLE and G_WIN32_ATTACH_CONSOLE.
@@ -1024,9 +1056,31 @@ g_console_win32_init (void)
  * it will be non-NULL. Only used to later de-install the handler
  * on library de-initialization.
  */
-static void *WinVEH_handle = NULL;
+static void        *WinVEH_handle = NULL;
+
+#define             DEBUGGER_BUFFER_SIZE (MAX_PATH + 1)
+/* This is the debugger that we'll run on crash */
+static wchar_t      debugger[DEBUGGER_BUFFER_SIZE];
+
+static gsize        number_of_exceptions_to_catch = 0;
+static DWORD       *exceptions_to_catch = NULL;
+
+static HANDLE       debugger_wakeup_event = 0;
+static DWORD        debugger_spawn_flags = 0;
 
 #include "gwin32-private.c"
+
+static char *
+copy_chars (char       *buffer,
+            gsize      *buffer_size,
+            const char *to_copy)
+{
+  gsize copy_count = MIN (strlen (to_copy), *buffer_size - 1);
+  memset (buffer, 0x20, copy_count);
+  strncpy_s (buffer, *buffer_size, to_copy, _TRUNCATE);
+  *buffer_size -= copy_count;
+  return &buffer[copy_count];
+}
 
 /* Handles exceptions (useful for debugging).
  * Issues a DebugBreak() call if the process is being debugged (not really
@@ -1057,23 +1111,31 @@ static void *WinVEH_handle = NULL;
  * or for control flow.
  *
  * This function deliberately avoids calling any GLib code.
+ * This is done on purpose. This function can be called when the program
+ * is in a bad state (crashing). It can also be called very early, as soon
+ * as the handler is installed. Therefore, it's imperative that
+ * it does as little as possible. Preferably, all the work that can be
+ * done in advance (when the program is not crashing yet) should be done
+ * in advance.
  */
 static LONG __stdcall
 g_win32_veh_handler (PEXCEPTION_POINTERS ExceptionInfo)
 {
   EXCEPTION_RECORD    *er;
-  char                 debugger[MAX_PATH + 1];
-  const char          *debugger_env = NULL;
-  const char          *catch_list;
-  gboolean             catch = FALSE;
-  STARTUPINFO          si;
+  gsize                i;
+  STARTUPINFOW         si;
   PROCESS_INFORMATION  pi;
-  HANDLE               event;
-  SECURITY_ATTRIBUTES  sa;
+#define ITOA_BUFFER_SIZE 100
+  char                 itoa_buffer[ITOA_BUFFER_SIZE];
+#define DEBUG_STRING_SIZE 1024
+  gsize                dbgs = DEBUG_STRING_SIZE;
+  char                 debug_string[DEBUG_STRING_SIZE];
+  char                *dbgp;
 
   if (ExceptionInfo == NULL ||
       ExceptionInfo->ExceptionRecord == NULL ||
-      IsDebuggerPresent ())
+      IsDebuggerPresent () ||
+      debugger[0] == 0)
     return EXCEPTION_CONTINUE_SEARCH;
 
   er = ExceptionInfo->ExceptionRecord;
@@ -1085,100 +1147,22 @@ g_win32_veh_handler (PEXCEPTION_POINTERS ExceptionInfo)
     case EXCEPTION_ILLEGAL_INSTRUCTION:
       break;
     default:
-      catch_list = g_getenv ("G_VEH_CATCH");
+      for (i = 0; i < number_of_exceptions_to_catch; i++)
+        if (exceptions_to_catch[i] == er->ExceptionCode)
+          break;
 
-      while (!catch &&
-             catch_list != NULL &&
-             catch_list[0] != 0)
-        {
-          unsigned long  catch_code;
-          char          *end;
-          errno = 0;
-          catch_code = strtoul (catch_list, &end, 16);
-          if (errno != NO_ERROR)
-            break;
-          catch_list = end;
-          if (catch_list != NULL && catch_list[0] == ',')
-            catch_list++;
-          if (catch_code == er->ExceptionCode)
-            catch = TRUE;
-        }
+      if (i == number_of_exceptions_to_catch)
+        return EXCEPTION_CONTINUE_SEARCH;
 
-      if (catch)
-        break;
-
-      return EXCEPTION_CONTINUE_SEARCH;
-    }
-
-  fprintf_s (stderr,
-             "Exception code=0x%lx flags=0x%lx at 0x%p",
-             er->ExceptionCode,
-             er->ExceptionFlags,
-             er->ExceptionAddress);
-
-  switch (er->ExceptionCode)
-    {
-    case EXCEPTION_ACCESS_VIOLATION:
-      fprintf_s (stderr,
-                 ". Access violation - attempting to %s at address 0x%p\n",
-                 er->ExceptionInformation[0] == 0 ? "read data" :
-                 er->ExceptionInformation[0] == 1 ? "write data" :
-                 er->ExceptionInformation[0] == 8 ? "execute data" :
-                 "do something bad",
-                 (void *) er->ExceptionInformation[1]);
-      break;
-    case EXCEPTION_IN_PAGE_ERROR:
-      fprintf_s (stderr,
-                 ". Page access violation - attempting to %s at address 0x%p with status %Ix\n",
-                 er->ExceptionInformation[0] == 0 ? "read from an inaccessible page" :
-                 er->ExceptionInformation[0] == 1 ? "write to an inaccessible page" :
-                 er->ExceptionInformation[0] == 8 ? "execute data in page" :
-                 "do something bad with a page",
-                 (void *) er->ExceptionInformation[1],
-                 er->ExceptionInformation[2]);
-      break;
-    default:
-      fprintf_s (stderr, "\n");
       break;
     }
 
-  fflush (stderr);
-
-  debugger_env = g_getenv ("G_DEBUGGER");
-
-  if (debugger_env == NULL)
-    return EXCEPTION_CONTINUE_SEARCH;
-
-  /* Create an inheritable event */
   memset (&si, 0, sizeof (si));
   memset (&pi, 0, sizeof (pi));
-  memset (&sa, 0, sizeof (sa));
   si.cb = sizeof (si);
-  sa.nLength = sizeof (sa);
-  sa.bInheritHandle = TRUE;
-  event = CreateEvent (&sa, FALSE, FALSE, NULL);
-
-  /* Put process ID and event handle into debugger commandline */
-  if (!_g_win32_subst_pid_and_event (debugger, G_N_ELEMENTS (debugger),
-                                     debugger_env, GetCurrentProcessId (),
-                                     (guintptr) event))
-    {
-      CloseHandle (event);
-      return EXCEPTION_CONTINUE_SEARCH;
-    }
 
   /* Run the debugger */
-  debugger[MAX_PATH] = '\0';
-  if (0 != CreateProcessA (NULL,
-                           debugger,
-                           NULL,
-                           NULL,
-                           TRUE,
-                           g_getenv ("G_DEBUGGER_OLD_CONSOLE") != NULL ? 0 : CREATE_NEW_CONSOLE,
-                           NULL,
-                           NULL,
-                           &si,
-                           &pi))
+  if (0 != CreateProcessW (NULL, debugger, NULL, NULL, TRUE, debugger_spawn_flags, NULL, NULL, &si, &pi))
     {
       CloseHandle (pi.hProcess);
       CloseHandle (pi.hThread);
@@ -1188,10 +1172,66 @@ g_win32_veh_handler (PEXCEPTION_POINTERS ExceptionInfo)
        * up forever in case the debugger does not support
        * event signalling.
        */
-      WaitForSingleObject (event, 60000);
-    }
+      WaitForSingleObject (debugger_wakeup_event, 60000);
 
-  CloseHandle (event);
+      dbgp = &debug_string[0];
+
+      dbgp = copy_chars (dbgp, &dbgs, "Exception code=0x");
+      itoa_buffer[0] = 0;
+      _ui64toa_s (er->ExceptionCode, itoa_buffer, ITOA_BUFFER_SIZE, 16);
+      dbgp = copy_chars (dbgp, &dbgs, itoa_buffer);
+      dbgp = copy_chars (dbgp, &dbgs, " flags=0x");
+      itoa_buffer[0] = 0;
+      _ui64toa_s (er->ExceptionFlags, itoa_buffer, ITOA_BUFFER_SIZE, 16);
+      dbgp = copy_chars (dbgp, &dbgs, itoa_buffer);
+      dbgp = copy_chars (dbgp, &dbgs, " at 0x");
+      itoa_buffer[0] = 0;
+      _ui64toa_s ((guintptr) er->ExceptionAddress, itoa_buffer, ITOA_BUFFER_SIZE, 16);
+      dbgp = copy_chars (dbgp, &dbgs, itoa_buffer);
+
+      switch (er->ExceptionCode)
+        {
+        case EXCEPTION_ACCESS_VIOLATION:
+          dbgp = copy_chars (dbgp, &dbgs, ". Access violation - attempting to ");
+          if (er->ExceptionInformation[0] == 0)
+            dbgp = copy_chars (dbgp, &dbgs, "read data");
+          else if (er->ExceptionInformation[0] == 1)
+            dbgp = copy_chars (dbgp, &dbgs, "write data");
+          else if (er->ExceptionInformation[0] == 8)
+            dbgp = copy_chars (dbgp, &dbgs, "execute data");
+          else
+            dbgp = copy_chars (dbgp, &dbgs, "do something bad");
+          dbgp = copy_chars (dbgp, &dbgs, " at address 0x");
+          itoa_buffer[0] = 0;
+          _ui64toa_s (er->ExceptionInformation[1], itoa_buffer, ITOA_BUFFER_SIZE, 16);
+          dbgp = copy_chars (dbgp, &dbgs, itoa_buffer);
+          break;
+        case EXCEPTION_IN_PAGE_ERROR:
+          dbgp = copy_chars (dbgp, &dbgs, ". Page access violation - attempting to ");
+          if (er->ExceptionInformation[0] == 0)
+            dbgp = copy_chars (dbgp, &dbgs, "read from an inaccessible page");
+          else if (er->ExceptionInformation[0] == 1)
+            dbgp = copy_chars (dbgp, &dbgs, "write to an inaccessible page");
+          else if (er->ExceptionInformation[0] == 8)
+            dbgp = copy_chars (dbgp, &dbgs, "execute data in page");
+          else
+            dbgp = copy_chars (dbgp, &dbgs, "do something bad with a page");
+          dbgp = copy_chars (dbgp, &dbgs, " at address 0x");
+          itoa_buffer[0] = 0;
+          _ui64toa_s (er->ExceptionInformation[1], itoa_buffer, ITOA_BUFFER_SIZE, 16);
+          dbgp = copy_chars (dbgp, &dbgs, itoa_buffer);
+          dbgp = copy_chars (dbgp, &dbgs, " with status ");
+          itoa_buffer[0] = 0;
+          _ui64toa_s (er->ExceptionInformation[2], itoa_buffer, ITOA_BUFFER_SIZE, 16);
+          dbgp = copy_chars (dbgp, &dbgs, itoa_buffer);
+          break;
+        default:
+          break;
+        }
+
+      dbgp = copy_chars (dbgp, &dbgs, "\n");
+      OutputDebugStringA (debug_string);
+    }
 
   /* Now the debugger is present, and we can try
    * resuming execution, re-triggering the exception,
@@ -1203,19 +1243,87 @@ g_win32_veh_handler (PEXCEPTION_POINTERS ExceptionInfo)
   return EXCEPTION_CONTINUE_SEARCH;
 }
 
+static gsize
+parse_catch_list (const wchar_t *catch_buffer,
+                  DWORD         *exceptions,
+                  gsize          num_exceptions)
+{
+  const wchar_t *catch_list = catch_buffer;
+  gsize          result = 0;
+  gsize          i = 0;
+
+  while (catch_list != NULL &&
+         catch_list[0] != 0)
+    {
+      unsigned long  catch_code;
+      wchar_t       *end;
+      errno = 0;
+      catch_code = wcstoul (catch_list, &end, 16);
+      if (errno != NO_ERROR)
+        break;
+      catch_list = end;
+      if (catch_list != NULL && catch_list[0] == L',')
+        catch_list++;
+      if (exceptions && i < num_exceptions)
+        exceptions[i++] = catch_code;
+    }
+
+  return result;
+}
+
 void
 g_crash_handler_win32_init (void)
 {
+  wchar_t      debugger_env[DEBUGGER_BUFFER_SIZE];
+#define CATCH_BUFFER_SIZE 1024
+  wchar_t      catch_buffer[CATCH_BUFFER_SIZE];
+  SECURITY_ATTRIBUTES  sa;
+
   if (WinVEH_handle != NULL)
     return;
 
   /* Do not register an exception handler if we're not supposed to catch any
    * exceptions. Exception handlers are considered dangerous to use, and can
    * break advanced exception handling such as in CLRs like C# or other managed
-   * code. See: https://blogs.msdn.microsoft.com/jmstall/2006/05/24/beware-of-the-vectored-exception-handler-and-managed-code/
+   * code. See: http://www.windows-tech.info/13/785f590867bd6316.php
    */
-  if (g_getenv ("G_DEBUGGER") == NULL && g_getenv("G_VEH_CATCH") == NULL)
+  debugger_env[0] = 0;
+  if (!GetEnvironmentVariableW (L"G_DEBUGGER", debugger_env, DEBUGGER_BUFFER_SIZE))
     return;
+
+  /* Create an inheritable event */
+  memset (&sa, 0, sizeof (sa));
+  sa.nLength = sizeof (sa);
+  sa.bInheritHandle = TRUE;
+  debugger_wakeup_event = CreateEvent (&sa, FALSE, FALSE, NULL);
+
+  /* Put process ID and event handle into debugger commandline */
+  if (!_g_win32_subst_pid_and_event_w (debugger, G_N_ELEMENTS (debugger),
+                                       debugger_env, GetCurrentProcessId (),
+                                       (guintptr) debugger_wakeup_event))
+    {
+      CloseHandle (debugger_wakeup_event);
+      debugger_wakeup_event = 0;
+      debugger[0] = 0;
+      return;
+    }
+  debugger[MAX_PATH] = L'\0';
+
+  catch_buffer[0] = 0;
+  if (GetEnvironmentVariableW (L"G_VEH_CATCH", catch_buffer, CATCH_BUFFER_SIZE))
+    {
+      number_of_exceptions_to_catch = parse_catch_list (catch_buffer, NULL, 0);
+      if (number_of_exceptions_to_catch > 0)
+        {
+          exceptions_to_catch = g_new0 (DWORD, number_of_exceptions_to_catch);
+          parse_catch_list (catch_buffer, exceptions_to_catch, number_of_exceptions_to_catch);
+        }
+    }
+
+  if (GetEnvironmentVariableW (L"G_DEBUGGER_OLD_CONSOLE", (wchar_t *) &debugger_spawn_flags, 1))
+    debugger_spawn_flags = 0;
+  else
+    debugger_spawn_flags = CREATE_NEW_CONSOLE;
 
   WinVEH_handle = AddVectoredExceptionHandler (0, &g_win32_veh_handler);
 }
@@ -1230,4 +1338,231 @@ g_crash_handler_win32_deinit (void)
 }
 #endif // GSTREAMER_LITE
 
-#endif
+/**
+ * g_win32_find_helper_executable_path:
+ * @executable_name: (transfer none): name of the helper executable to find
+ * (something like gspawn-win64-helper.exe or gdbus.exe for example).
+ * @dll_handle: handle of the DLL to use as searching base path. Pass NULL
+ * to take current process executable as searching base path.
+ *
+ * Find an external executable path and name starting in the same folder
+ * as a specified DLL or current process executable path. Helper executables
+ * (like gspawn-win64-helper.exe, gspawn-win64-helper-console.exe or
+ * gdbus.exe for example) are generally installed in the same folder as the
+ * corresponding DLL file.
+ *
+ * So, if package has been correctly installed, with a dynamic build of GLib,
+ * the helper executable should be in the same directory as the corresponding
+ * DLL file and searching should be straightforward.
+ *
+ * But if built statically, DLL handle is not available and we have to start
+ * searching from the directory holding current executable. It may be very
+ * different from the directory containing the helper program. In order to
+ * find the right helper program automatically in all common situations, we
+ * use this pattern:
+ *
+ * current directory
+ *             |-- ???
+ *             |-- bin
+ *             |    |-- ???
+ *             |-- lib
+ *             |    |-- ???
+ *             |-- glib
+ *             |    |-- ???
+ *             |-- gio
+ *                  |-- ???
+ *
+ * starting at base searching path (DLL or current executable directory) and
+ * getting up until the root path. If we cannot still find the helper program,
+ * we'll rely on PATH as the last resort.
+ *
+ * Returns: (transfer full) (type filename) (nullable): the helper executable
+ * path and name in the GLib filename encoding or NULL in case of error. It
+ * should be deallocated with g_free().
+ */
+gchar *
+g_win32_find_helper_executable_path (const gchar *executable_name, void *dll_handle)
+{
+  static const gchar *const subdirs[] = { "", "bin", "lib", "glib", "gio" };
+  static const gsize nb_subdirs = G_N_ELEMENTS (subdirs);
+
+  DWORD module_path_len;
+  wchar_t module_path[MAX_PATH + 2] = { 0 };
+  gchar *base_searching_path;
+  gchar *p;
+  gchar *executable_path;
+  gsize i;
+
+  g_return_val_if_fail (executable_name && *executable_name, NULL);
+
+  module_path_len = GetModuleFileNameW (dll_handle, module_path, MAX_PATH + 1);
+  /* The > MAX_PATH check prevents truncated module path usage */
+  if (module_path_len == 0 || module_path_len > MAX_PATH)
+    return NULL;
+
+  base_searching_path = g_utf16_to_utf8 (module_path, -1, NULL, NULL, NULL);
+  if (base_searching_path == NULL)
+    return NULL;
+
+  p = strrchr (base_searching_path, G_DIR_SEPARATOR);
+  if (p == NULL)
+    {
+      g_free (base_searching_path);
+      return NULL;
+    }
+  *p = '\0';
+
+  for (;;)
+    {
+      /* Search in subdirectories */
+      for (i = 0; i < nb_subdirs; ++i)
+        {
+          /* As this function is exclusively used on Windows, the
+           * executable_path is always an absolute path. At worse, when
+           * reaching the root of the filesystem, base_searching_path may
+           * equal something like "[Drive letter]:" but never "/" like on
+           * Linux or Mac.
+           * For the peace of mind we still assert this, just in case that
+           * one day someone tries to use this function on Linux or Mac.
+           */
+          executable_path = g_build_filename (base_searching_path, subdirs[i], executable_name, NULL);
+          g_assert (g_path_is_absolute (executable_path));
+          if (g_file_test (executable_path, G_FILE_TEST_IS_REGULAR))
+            break;
+
+          g_free (executable_path);
+          executable_path = NULL;
+        }
+
+      if (executable_path != NULL)
+        break;
+
+      /* Let's get one directory level up */
+      p = strrchr (base_searching_path, G_DIR_SEPARATOR);
+      if (p == NULL)
+        break;
+
+      *p = '\0';
+    }
+  g_free (base_searching_path);
+
+  if (executable_path == NULL)
+    {
+      /* Search in system PATH */
+      executable_path = g_find_program_in_path (executable_name);
+      if (executable_path == NULL)
+        executable_path = g_strdup (executable_name);
+    }
+
+  return executable_path;
+}
+
+/*
+ * g_win32_handle_is_socket:
+ * @h: a win32 HANDLE
+ *
+ * Returns: %TRUE if the handle is a `SOCKET`.
+ */
+gboolean
+g_win32_handle_is_socket (HANDLE h)
+{
+  int option = 0;
+  int optlen = sizeof (option);
+
+  /* according to: https://stackoverflow.com/a/50981652/1277510, this is reasonable */
+  if (getsockopt ((SOCKET) h, SOL_SOCKET, SO_DEBUG, (char *) &option, &optlen) == SOCKET_ERROR)
+    return FALSE;
+
+  return TRUE;
+}
+
+/*
+ * g_win32_reopen_noninherited:
+ * @fd: (transfer full): A file descriptor
+ * @mode: _open_osfhandle flags
+ * @error: A location to return an error of type %G_FILE_ERROR
+ *
+ * Reopen the given @fd with `_O_NOINHERIT`.
+ *
+ * The @fd is closed on success.
+ *
+ * Returns: (transfer full): The new file-descriptor, or -1 on error.
+ */
+int
+g_win32_reopen_noninherited (int fd,
+                             int mode,
+                             GError **error)
+{
+  HANDLE h;
+  HANDLE duph;
+  int dupfd, errsv;
+
+  h = (HANDLE) _get_osfhandle (fd);
+  errsv = errno;
+
+  if (h == INVALID_HANDLE_VALUE)
+    {
+      const char *emsg = g_strerror (errsv);
+      g_set_error (error, G_FILE_ERROR, g_file_error_from_errno (errsv),
+                   "_get_osfhandle() failed: %s", emsg);
+      return -1;
+    }
+
+  if (g_win32_handle_is_socket (h))
+    {
+      WSAPROTOCOL_INFO info;
+
+      if (WSADuplicateSocket ((SOCKET) h,
+                              GetCurrentProcessId (),
+                              &info))
+        {
+          gchar *emsg = g_win32_error_message (WSAGetLastError ());
+          g_set_error (error, G_FILE_ERROR, G_FILE_ERROR_FAILED,
+                       "WSADuplicateSocket() failed: %s", emsg);
+          g_free (emsg);
+          return -1;
+        }
+
+      duph = (HANDLE) WSASocket (FROM_PROTOCOL_INFO,
+                                 FROM_PROTOCOL_INFO,
+                                 FROM_PROTOCOL_INFO,
+                                 &info, 0, 0);
+      if (duph == (HANDLE) INVALID_SOCKET)
+        {
+          gchar *emsg = g_win32_error_message (WSAGetLastError ());
+          g_set_error (error, G_FILE_ERROR, G_FILE_ERROR_FAILED,
+                       "WSASocket() failed: %s", emsg);
+          g_free (emsg);
+          return -1;
+        }
+    }
+  else if (DuplicateHandle (GetCurrentProcess (), h,
+                            GetCurrentProcess (), &duph,
+                            0, FALSE, DUPLICATE_SAME_ACCESS) == 0)
+    {
+      char *emsg = g_win32_error_message (GetLastError ());
+      g_set_error (error, G_FILE_ERROR, G_FILE_ERROR_FAILED,
+                   "DuplicateHandle() failed: %s", emsg);
+      g_free (emsg);
+      return -1;
+    }
+
+  /* the duph ownership is transferred to dupfd */
+  dupfd = _open_osfhandle ((gintptr) duph, mode | _O_NOINHERIT);
+  if (dupfd < 0)
+    {
+      g_set_error_literal (error, G_FILE_ERROR, G_FILE_ERROR_FAILED,
+                           "_open_osfhandle() failed");
+      CloseHandle (duph);
+      return -1;
+    }
+
+  if (!g_close (fd, error))
+    {
+      /* ignore extra errors in this case */
+      g_close (dupfd, NULL);
+      return -1;
+    }
+
+  return dupfd;
+}

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,39 +33,25 @@
 
 namespace WebCore {
 
-void BitmapTextureJava::updateContents(const void*, const IntRect&, const IntPoint&, int)
+
+void BitmapTextureJava::updateContents(const void*, const IntRect& target, const IntPoint& sourceOffset, int bytesPerLine)
 {
-}
-
-void BitmapTextureJava::updateContents(TextureMapper& mapper, GraphicsLayer* sourceLayer, const IntRect& targetRect, const IntPoint& sourceOffset, float /*scale*/)
-{
-    GraphicsContext& context = m_image->context();
-    // Share RenderThemeJava context
-    context.platformContext()->setJRenderTheme(static_cast<TextureMapperJava&>(mapper).graphicsContext()->platformContext()->jRenderTheme());
-
-    context.clearRect(targetRect);
-
-    IntRect sourceRect(targetRect);
-    sourceRect.setLocation(sourceOffset);
-    context.save();
-    context.clip(targetRect);
-    context.translate(targetRect.x() - sourceOffset.x(), targetRect.y() - sourceOffset.y());
-    sourceLayer->paintGraphicsLayerContents(context, sourceRect);
-    context.restore();
+    notImplemented();
 }
 
 void BitmapTextureJava::didReset()
 {
     float devicePixelRatio = 1.0;
-    m_image = ImageBuffer::create(contentSize(), RenderingMode::Accelerated, devicePixelRatio);
+    m_image = ImageBuffer::create(contentSize(), RenderingMode::Unaccelerated, RenderingPurpose::Unspecified, devicePixelRatio,
+                     DestinationColorSpace::SRGB(), ImageBufferPixelFormat::BGRA8);
 }
 
-void BitmapTextureJava::updateContents(Image* image, const IntRect& targetRect, const IntPoint& offset)
+void BitmapTextureJava::updateContents(NativeImage* image, const IntRect& targetRect, const IntPoint& offset)
 {
-    m_image->context().drawImage(*image, targetRect, IntRect(offset, targetRect.size()), CompositeOperator::Copy);
+    //m_image->context().drawImage(*image, targetRect, IntRect(offset, targetRect.size()));
 }
 
-RefPtr<BitmapTexture> BitmapTextureJava::applyFilters(TextureMapper&, const FilterOperations&)
+RefPtr<BitmapTexture> BitmapTextureJava::applyFilters(TextureMapper&, const FilterOperations&, bool)
 {
     notImplemented();
     return this;

@@ -34,6 +34,17 @@
  *     caps (simple caps = one line)
  */
 
+/**
+ * SECTION: debugutils
+ * @title: Debugging utilities
+ * @short_description: A set of utilities for debugging and development
+ *
+ * These utility functions help with generating dot graphs which can
+ * be rendered with [graphviz] to multiple formats.
+ *
+ * [graphviz]: https://graphviz.org/
+ */
+
 #include "gst_private.h"
 #include "gstdebugutils.h"
 
@@ -71,7 +82,8 @@ static const gchar spaces[] = {
 static gchar *
 debug_dump_make_object_name (GstObject * obj)
 {
-  return g_strcanon (g_strdup_printf ("%s_%p", GST_OBJECT_NAME (obj), obj),
+  /* must start with a letter to prevent dot from splitting names starting with [0-9] */
+  return g_strcanon (g_strdup_printf ("node_%s_%p", GST_OBJECT_NAME (obj), obj),
       G_CSET_A_2_Z G_CSET_a_2_z G_CSET_DIGITS "_", '_');
 }
 
@@ -799,7 +811,7 @@ debug_dump_footer (GString * str)
  * @details: type of #GstDebugGraphDetails to use
  *
  * To aid debugging applications one can use this method to obtain the whole
- * network of gstreamer elements that form the pipeline into an dot file.
+ * network of gstreamer elements that form the pipeline into a dot file.
  * This data can be processed with graphviz to get an image.
  *
  * Returns: (transfer full): a string containing the pipeline in graphviz
@@ -828,7 +840,7 @@ gst_debug_bin_to_dot_data (GstBin * bin, GstDebugGraphDetails details)
  * @file_name: (type filename): output base filename (e.g. "myplayer")
  *
  * To aid debugging applications one can use this method to write out the whole
- * network of gstreamer elements that form the pipeline into an dot file.
+ * network of gstreamer elements that form the pipeline into a dot file.
  * This file can be processed with graphviz to get an image.
  *
  * ``` shell
@@ -911,6 +923,13 @@ gst_debug_bin_to_dot_file_with_ts (GstBin * bin,
 }
 #else /* !GST_DISABLE_GST_DEBUG */
 #ifndef GST_REMOVE_DISABLED
+
+gchar *
+gst_debug_bin_to_dot_data (GstBin * bin, GstDebugGraphDetails details)
+{
+  return g_strdup ("");
+}
+
 void
 gst_debug_bin_to_dot_file (GstBin * bin, GstDebugGraphDetails details,
     const gchar * file_name)

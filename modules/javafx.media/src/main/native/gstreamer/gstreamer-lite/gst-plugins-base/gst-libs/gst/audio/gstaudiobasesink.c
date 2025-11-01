@@ -699,6 +699,7 @@ gst_audio_base_sink_set_alignment_threshold (GstAudioBaseSink * sink,
     GstClockTime alignment_threshold)
 {
   g_return_if_fail (GST_IS_AUDIO_BASE_SINK (sink));
+  g_return_if_fail (GST_CLOCK_TIME_IS_VALID (alignment_threshold));
 
   GST_OBJECT_LOCK (sink);
   sink->priv->alignment_threshold = alignment_threshold;
@@ -739,6 +740,7 @@ gst_audio_base_sink_set_discont_wait (GstAudioBaseSink * sink,
     GstClockTime discont_wait)
 {
   g_return_if_fail (GST_IS_AUDIO_BASE_SINK (sink));
+  g_return_if_fail (GST_CLOCK_TIME_IS_VALID (discont_wait));
 
   GST_OBJECT_LOCK (sink);
   sink->priv->discont_wait = discont_wait;
@@ -1731,6 +1733,7 @@ flushing:
   }
 }
 
+#define ABSDIFF(a, b) ((a) > (b) ? (a) - (b) : (b) - (a))
 static gint64
 gst_audio_base_sink_get_alignment (GstAudioBaseSink * sink,
     GstClockTime sample_offset)
@@ -1767,10 +1770,16 @@ gst_audio_base_sink_get_alignment (GstAudioBaseSink * sink,
     if (sink->priv->discont_wait > 0) {
       GstClockTime time = gst_util_uint64_scale_int (sample_offset,
           GST_SECOND, rate);
+      GstClockTime expected_time = gst_util_uint64_scale_int (sink->next_sample,
+          GST_SECOND, rate);
+
       if (sink->priv->discont_time == -1) {
-        /* discont candidate */
-        sink->priv->discont_time = time;
-      } else if (time - sink->priv->discont_time >= sink->priv->discont_wait) {
+        if (ABSDIFF (expected_time, time) >= sink->priv->discont_wait)
+          discont = TRUE;
+        else
+          sink->priv->discont_time = expected_time;
+      } else if (ABSDIFF (time,
+              sink->priv->discont_time) >= sink->priv->discont_wait) {
         /* discont_wait expired, discontinuity detected */
         discont = TRUE;
         sink->priv->discont_time = -1;
@@ -1807,6 +1816,8 @@ gst_audio_base_sink_get_alignment (GstAudioBaseSink * sink,
 
   return align;
 }
+
+#undef ABSDIFF
 
 static GstFlowReturn
 gst_audio_base_sink_render (GstBaseSink * bsink, GstBuffer * buf)
@@ -1878,7 +1889,7 @@ gst_audio_base_sink_render (GstBaseSink * bsink, GstBuffer * buf)
 
   samples = size / bpf;
 
-  time = GST_BUFFER_TIMESTAMP (buf);
+  time = GST_BUFFER_PTS (buf);
 
   /* Last ditch attempt to ensure that we only play silence if
    * we are in trickmode no-audio mode (or if a buffer is marked as a GAP)
@@ -2278,7 +2289,7 @@ sync_latency_failed:
  * call the ::create_ringbuffer vmethod and will set @sink as the parent of
  * the returned buffer (see gst_object_set_parent()).
  *
- * Returns: (transfer none): The new ringbuffer of @sink.
+ * Returns: (transfer none) (nullable): The new ringbuffer of @sink.
  */
 GstAudioRingBuffer *
 gst_audio_base_sink_create_ringbuffer (GstAudioBaseSink * sink)
@@ -2372,6 +2383,7 @@ eos:
     gst_element_post_message (GST_ELEMENT_CAST (sink),
         gst_message_new_eos (GST_OBJECT_CAST (sink)));
     GST_PAD_STREAM_UNLOCK (basesink->sinkpad);
+    return;
   }
 flushing:
   {

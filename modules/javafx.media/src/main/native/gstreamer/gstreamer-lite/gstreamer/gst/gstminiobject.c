@@ -59,6 +59,8 @@
 #include "gst/gstinfo.h"
 #include <gobject/gvaluecollector.h>
 
+GType _gst_mini_object_type = 0;
+
 /* Mutex used for weak referencing */
 G_LOCK_DEFINE_STATIC (qdata_mutex);
 static GQuark weak_ref_quark;
@@ -71,6 +73,14 @@ static GQuark weak_ref_quark;
 #define FLAG_MASK (GST_LOCK_FLAG_LAST - 1)
 #define LOCK_MASK ((SHARE_ONE - 1) - FLAG_MASK)
 #define LOCK_FLAG_MASK (SHARE_ONE - 1)
+
+/**
+ * GST_TYPE_MINI_OBJECT:
+ *
+ * The #GType associated with #GstMiniObject.
+ *
+ * Since: 1.20
+ */
 
 /* For backwards compatibility reasons we use the
  * guint and gpointer in the GstMiniObject struct in
@@ -126,9 +136,12 @@ typedef struct
 #define QDATA_DATA(o,i)     (QDATA(o,i).data)
 #define QDATA_DESTROY(o,i)  (QDATA(o,i).destroy)
 
+GST_DEFINE_MINI_OBJECT_TYPE (GstMiniObject, gst_mini_object);
+
 void
 _priv_gst_mini_object_initialize (void)
 {
+  _gst_mini_object_type = gst_mini_object_get_type ();
   weak_ref_quark = g_quark_from_static_string ("GstMiniObjectWeakRefQuark");
 }
 
@@ -204,7 +217,7 @@ gst_mini_object_copy (const GstMiniObject * mini_object)
 gboolean
 gst_mini_object_lock (GstMiniObject * object, GstLockFlags flags)
 {
-  gint access_mode, state, newstate;
+  guint access_mode, state, newstate;
 
   g_return_val_if_fail (object != NULL, FALSE);
   g_return_val_if_fail (GST_MINI_OBJECT_IS_LOCKABLE (object), FALSE);
@@ -215,9 +228,9 @@ gst_mini_object_lock (GstMiniObject * object, GstLockFlags flags)
 
   do {
     access_mode = flags & FLAG_MASK;
-    newstate = state = g_atomic_int_get (&object->lockstate);
+    newstate = state = (guint) g_atomic_int_get (&object->lockstate);
 
-    GST_CAT_TRACE (GST_CAT_LOCKING, "lock %p: state %08x, access_mode %d",
+    GST_CAT_TRACE (GST_CAT_LOCKING, "lock %p: state %08x, access_mode %u",
         object, state, access_mode);
 
     if (access_mode & GST_LOCK_FLAG_EXCLUSIVE) {
@@ -252,7 +265,7 @@ gst_mini_object_lock (GstMiniObject * object, GstLockFlags flags)
 lock_failed:
   {
     GST_CAT_DEBUG (GST_CAT_LOCKING,
-        "lock failed %p: state %08x, access_mode %d", object, state,
+        "lock failed %p: state %08x, access_mode %u", object, state,
         access_mode);
     return FALSE;
   }
@@ -268,16 +281,16 @@ lock_failed:
 void
 gst_mini_object_unlock (GstMiniObject * object, GstLockFlags flags)
 {
-  gint access_mode, state, newstate;
+  guint access_mode, state, newstate;
 
   g_return_if_fail (object != NULL);
   g_return_if_fail (GST_MINI_OBJECT_IS_LOCKABLE (object));
 
   do {
     access_mode = flags & FLAG_MASK;
-    newstate = state = g_atomic_int_get (&object->lockstate);
+    newstate = state = (guint) g_atomic_int_get (&object->lockstate);
 
-    GST_CAT_TRACE (GST_CAT_LOCKING, "unlock %p: state %08x, access_mode %d",
+    GST_CAT_TRACE (GST_CAT_LOCKING, "unlock %p: state %08x, access_mode %u",
         object, state, access_mode);
 
     if (access_mode & GST_LOCK_FLAG_EXCLUSIVE) {
@@ -410,8 +423,8 @@ gst_mini_object_is_writable (const GstMiniObject * mini_object)
  *
  * MT safe
  *
- * Returns: (transfer full): a mini-object (possibly the same pointer) that
- *     is writable.
+ * Returns: (transfer full) (nullable): a writable mini-object (which may or may not be
+ *     the same as @mini_object) or %NULL if copying is required but not possible.
  */
 GstMiniObject *
 gst_mini_object_make_writable (GstMiniObject * mini_object)

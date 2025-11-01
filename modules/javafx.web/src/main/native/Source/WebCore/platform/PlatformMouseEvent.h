@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2006, 2009 Apple Inc. All rights reserved.
+ * Copyright (C) 2004-2022 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,8 +26,11 @@
 #pragma once
 
 #include "IntPoint.h"
+#include "MouseEventTypes.h"
 #include "PlatformEvent.h"
+#include "PointerEventTypeNames.h"
 #include "PointerID.h"
+#include <wtf/UUID.h>
 #include <wtf/WindowsExtras.h>
 
 #if PLATFORM(JAVA)
@@ -36,42 +39,49 @@
 
 namespace WebCore {
 
-const double ForceAtClick = 1;
-const double ForceAtForceClick = 2;
-
-    // These button numbers match the ones used in the DOM API, 0 through 2, except for NoButton which isn't specified.
-    // We use -2 for NoButton because -1 is a valid value in the DOM API for Pointer Events for pointermove events that
-    // indicate that the pressed mouse button hasn't changed since the last event.
-    enum MouseButton : int8_t { LeftButton = 0, MiddleButton, RightButton, NoButton = -2 };
-    enum SyntheticClickType : int8_t { NoTap, OneFingerTap, TwoFingerTap };
-
-    class PlatformMouseEvent : public PlatformEvent {
-    public:
+class PlatformMouseEvent : public PlatformEvent {
+public:
         PlatformMouseEvent()
-            : PlatformEvent(PlatformEvent::MouseMoved)
+            : PlatformEvent(Type::MouseMoved)
         {
         }
 
-        PlatformMouseEvent(const IntPoint& position, const IntPoint& globalPosition, MouseButton button, PlatformEvent::Type type,
-                           int clickCount, bool shiftKey, bool ctrlKey, bool altKey, bool metaKey, WallTime timestamp, double force, SyntheticClickType syntheticClickType, PointerID pointerId = mousePointerID)
-            : PlatformEvent(type, shiftKey, ctrlKey, altKey, metaKey, timestamp)
+        PlatformMouseEvent(const IntPoint& position, const IntPoint& globalPosition, MouseButton button, PlatformEvent::Type type, int clickCount, OptionSet<PlatformEvent::Modifier> modifiers, WallTime timestamp, double force, SyntheticClickType syntheticClickType, PointerID pointerId = mousePointerID)
+            : PlatformEvent(type, modifiers, timestamp)
+            , m_button(button)
+            , m_syntheticClickType(syntheticClickType)
             , m_position(position)
             , m_globalPosition(globalPosition)
-            , m_button(button)
-            , m_clickCount(clickCount)
             , m_force(force)
-            , m_syntheticClickType(syntheticClickType)
             , m_pointerId(pointerId)
+            , m_clickCount(clickCount)
         {
         }
+
+#if PLATFORM(JAVA)
+        PlatformMouseEvent(const IntPoint& position, const IntPoint& globalPosition, MouseButton button, unsigned short buttons, PlatformEvent::Type type,
+                           int clickCount, bool shiftKey, bool ctrlKey, bool altKey, bool metaKey, WallTime timestamp, double force,
+                           SyntheticClickType syntheticClickType, PointerID pointerId = mousePointerID)
+            : PlatformEvent(type, shiftKey, ctrlKey, altKey, metaKey, timestamp)
+            , m_button(button)
+            , m_syntheticClickType(syntheticClickType)
+            , m_position(position)
+            , m_globalPosition(globalPosition)
+            , m_force(force)
+            , m_pointerId(pointerId)
+            , m_clickCount(clickCount)
+            , m_buttons(buttons)
+        {
+        }
+#endif
 
         // This position is relative to the enclosing NSWindow in WebKit1, and is WKWebView-relative in WebKit2.
         // Use ScrollView::windowToContents() to convert it to into the contents of a given view.
         const IntPoint& position() const { return m_position; }
         const IntPoint& globalPosition() const { return m_globalPosition; }
-#if ENABLE(POINTER_LOCK)
         const IntPoint& movementDelta() const { return m_movementDelta; }
-#endif
+    // Unaccelerated pointer movement
+    const IntPoint& unadjustedMovementDelta() const { return m_unadjustedMovementDelta; }
 
         MouseButton button() const { return m_button; }
         unsigned short buttons() const { return m_buttons; }
@@ -80,6 +90,10 @@ const double ForceAtForceClick = 2;
         double force() const { return m_force; }
         SyntheticClickType syntheticClickType() const { return m_syntheticClickType; }
         PointerID pointerId() const { return m_pointerId; }
+        const String& pointerType() const { return m_pointerType; }
+
+    Vector<PlatformMouseEvent> coalescedEvents() const { return m_coalescedEvents; }
+    Vector<PlatformMouseEvent> predictedEvents() const { return m_predictedEvents; }
 
 #if PLATFORM(MAC)
         int eventNumber() const { return m_eventNumber; }
@@ -87,49 +101,60 @@ const double ForceAtForceClick = 2;
 #endif
 
 #if PLATFORM(WIN)
-        PlatformMouseEvent(HWND, UINT, WPARAM, LPARAM, bool didActivateWebView = false);
+        WEBCORE_EXPORT PlatformMouseEvent(HWND, UINT, WPARAM, LPARAM, bool didActivateWebView = false);
         void setClickCount(int count) { m_clickCount = count; }
         bool didActivateWebView() const { return m_didActivateWebView; }
 #endif
 
-    protected:
+#if PLATFORM(GTK)
+        enum class IsTouch : bool { No, Yes };
+
+        bool isTouchEvent() const { return m_isTouchEvent == IsTouch::Yes; }
+#endif
+
+protected:
+    MouseButton m_button { MouseButton::None };
+        SyntheticClickType m_syntheticClickType { SyntheticClickType::NoTap };
+
         IntPoint m_position;
         IntPoint m_globalPosition;
-#if ENABLE(POINTER_LOCK)
         IntPoint m_movementDelta;
-#endif
-        MouseButton m_button { NoButton };
-        unsigned short m_buttons { 0 };
+    IntPoint m_unadjustedMovementDelta;
+        double m_force { 0 };
+        PointerID m_pointerId { mousePointerID };
+    String m_pointerType { mousePointerEventType() };
         int m_clickCount { 0 };
         unsigned m_modifierFlags { 0 };
-        double m_force { 0 };
-        SyntheticClickType m_syntheticClickType { NoTap };
-        PointerID m_pointerId { mousePointerID };
-
+        unsigned short m_buttons { 0 };
+    Vector<PlatformMouseEvent> m_coalescedEvents;
+    Vector<PlatformMouseEvent> m_predictedEvents;
 #if PLATFORM(MAC)
         int m_eventNumber { 0 };
         int m_menuTypeForEvent { 0 };
 #elif PLATFORM(WIN)
         bool m_didActivateWebView { false };
+#elif PLATFORM(GTK)
+        IsTouch m_isTouchEvent { IsTouch::No };
 #endif
-    };
+};
 
 #if COMPILER(MSVC)
-    // These functions are necessary to work around the fact that MSVC will not find a most-specific
-    // operator== to use after implicitly converting MouseButton to a short.
-    inline bool operator==(short a, MouseButton b)
-    {
+// These functions are necessary to work around the fact that MSVC will not find a most-specific
+// operator== to use after implicitly converting MouseButton to a short.
+inline bool operator==(short a, MouseButton b)
+{
         return a == static_cast<short>(b);
-    }
+}
 
-    inline bool operator!=(short a, MouseButton b)
-    {
+inline bool operator!=(short a, MouseButton b)
+{
         return a != static_cast<short>(b);
-    }
+}
 #endif
 
 #if PLATFORM(JAVA)
     MouseButton getWebCoreMouseButton(jint javaButton);
+    unsigned short getWebCoreMouseButtons(jint javaButton);
     PlatformEvent::Type getWebCoreMouseEventType(jint eventID);
 #endif
 

@@ -236,7 +236,7 @@ gst_video_overlay_composition_meta_transform (GstBuffer * dest, GstMeta * meta,
 GType
 gst_video_overlay_composition_meta_api_get_type (void)
 {
-  static volatile GType type = 0;
+  static GType type = 0;
   static const gchar *tags[] = { NULL };
 
   if (g_once_init_enter (&type)) {
@@ -322,16 +322,18 @@ gst_video_overlay_composition_free (GstMiniObject * mini_obj)
   comp->rectangles = NULL;
   comp->num_rectangles = 0;
 
-  g_slice_free (GstVideoOverlayComposition, comp);
+  g_free (comp);
 }
 
 /**
  * gst_video_overlay_composition_new:
- * @rectangle: (transfer none): a #GstVideoOverlayRectangle to add to the
+ * @rectangle: (transfer none) (nullable): a #GstVideoOverlayRectangle to add to the
  *     composition
  *
  * Creates a new video overlay composition object to hold one or more
  * overlay rectangles.
+ *
+ * Note that since 1.20 this allows to pass %NULL for @rectangle.
  *
  * Returns: (transfer full): a new #GstVideoOverlayComposition. Unref with
  *     gst_video_overlay_composition_unref() when no longer needed.
@@ -341,13 +343,10 @@ gst_video_overlay_composition_new (GstVideoOverlayRectangle * rectangle)
 {
   GstVideoOverlayComposition *comp;
 
+  g_return_val_if_fail (GST_IS_VIDEO_OVERLAY_RECTANGLE (rectangle)
+      || rectangle == NULL, NULL);
 
-  /* FIXME: should we allow empty compositions? Could also be expressed as
-   * buffer without a composition on it. Maybe there are cases where doing
-   * an empty new + _add() in a loop is easier? */
-  g_return_val_if_fail (GST_IS_VIDEO_OVERLAY_RECTANGLE (rectangle), NULL);
-
-  comp = g_slice_new0 (GstVideoOverlayComposition);
+  comp = g_new0 (GstVideoOverlayComposition, 1);
 
   gst_mini_object_init (GST_MINI_OBJECT_CAST (comp), 0,
       GST_TYPE_VIDEO_OVERLAY_COMPOSITION,
@@ -355,18 +354,17 @@ gst_video_overlay_composition_new (GstVideoOverlayRectangle * rectangle)
       NULL, (GstMiniObjectFreeFunction) gst_video_overlay_composition_free);
 
   comp->rectangles = g_new0 (GstVideoOverlayRectangle *, RECTANGLE_ARRAY_STEP);
-  comp->rectangles[0] = gst_video_overlay_rectangle_ref (rectangle);
-  gst_mini_object_add_parent (GST_MINI_OBJECT_CAST (rectangle),
-      GST_MINI_OBJECT_CAST (comp));
-  comp->num_rectangles = 1;
 
   comp->seq_num = gst_video_overlay_get_seqnum ();
+  comp->min_seq_num_used = comp->seq_num;
 
-  /* since the rectangle was created earlier, its seqnum is smaller than ours */
-  comp->min_seq_num_used = rectangle->seq_num;
+  GST_LOG ("new composition %p: seq_num %u", comp, comp->seq_num);
 
-  GST_LOG ("new composition %p: seq_num %u with rectangle %p", comp,
-      comp->seq_num, rectangle);
+  if (rectangle) {
+    /* since the rectangle was created earlier, its seqnum is smaller than ours */
+    comp->min_seq_num_used = rectangle->seq_num;
+    gst_video_overlay_composition_add_rectangle (comp, rectangle);
+  }
 
   return comp;
 }
@@ -428,7 +426,7 @@ gst_video_overlay_composition_n_rectangles (GstVideoOverlayComposition * comp)
  *
  * Returns the @n-th #GstVideoOverlayRectangle contained in @comp.
  *
- * Returns: (transfer none): the @n-th rectangle, or NULL if @n is out of
+ * Returns: (transfer none) (nullable): the @n-th rectangle, or NULL if @n is out of
  *     bounds. Will not return a new reference, the caller will need to
  *     obtain her own reference using gst_video_overlay_rectangle_ref()
  *     if needed.
@@ -651,7 +649,7 @@ gst_video_overlay_rectangle_free (GstMiniObject * mini_obj)
   g_free (rect->initial_alpha);
   g_mutex_clear (&rect->lock);
 
-  g_slice_free (GstVideoOverlayRectangle, rect);
+  g_free (rect);
 }
 
 static inline gboolean
@@ -728,7 +726,7 @@ gst_video_overlay_rectangle_new_raw (GstBuffer * pixels,
       NULL);
   g_return_val_if_fail (height > 0 && width > 0, NULL);
 
-  rect = g_slice_new0 (GstVideoOverlayRectangle);
+  rect = g_new0 (GstVideoOverlayRectangle, 1);
 
   gst_mini_object_init (GST_MINI_OBJECT_CAST (rect), 0,
       GST_TYPE_VIDEO_OVERLAY_RECTANGLE,
@@ -1055,7 +1053,7 @@ gst_video_overlay_rectangle_apply_global_alpha (GstVideoOverlayRectangle * rect,
     for (j = 0; j < w; j++) {
       guint8 na = (guint8) (*src * global_alpha);
 
-      if (! !(rect->flags & GST_VIDEO_OVERLAY_FORMAT_FLAG_PREMULTIPLIED_ALPHA)) {
+      if (!!(rect->flags & GST_VIDEO_OVERLAY_FORMAT_FLAG_PREMULTIPLIED_ALPHA)) {
         dst[argb_r] =
             (guint8) ((double) (dst[argb_r] * 255) / (double) dst[argb_a]) *
             na / 255;
@@ -1078,8 +1076,9 @@ gst_video_overlay_rectangle_apply_global_alpha (GstVideoOverlayRectangle * rect,
 }
 
 static void
-gst_video_overlay_rectangle_convert (GstVideoInfo * src, GstBuffer * src_buffer,
-    GstVideoFormat dest_format, GstVideoInfo * dest, GstBuffer ** dest_buffer)
+gst_video_overlay_rectangle_convert (const GstVideoInfo * src,
+    GstBuffer * src_buffer, GstVideoFormat dest_format, GstVideoInfo * dest,
+    GstBuffer ** dest_buffer)
 {
   gint width, height, stride;
   GstVideoFrame src_frame, dest_frame;
@@ -1202,11 +1201,11 @@ gst_video_overlay_rectangle_get_pixels_raw_internal (GstVideoOverlayRectangle *
   format = GST_VIDEO_INFO_FORMAT (&rectangle->info);
 
   apply_global_alpha =
-      (! !(rectangle->flags & GST_VIDEO_OVERLAY_FORMAT_FLAG_GLOBAL_ALPHA)
+      (!!(rectangle->flags & GST_VIDEO_OVERLAY_FORMAT_FLAG_GLOBAL_ALPHA)
       && !(flags & GST_VIDEO_OVERLAY_FORMAT_FLAG_GLOBAL_ALPHA));
   revert_global_alpha =
-      (! !(rectangle->flags & GST_VIDEO_OVERLAY_FORMAT_FLAG_GLOBAL_ALPHA)
-      && ! !(flags & GST_VIDEO_OVERLAY_FORMAT_FLAG_GLOBAL_ALPHA));
+      (!!(rectangle->flags & GST_VIDEO_OVERLAY_FORMAT_FLAG_GLOBAL_ALPHA)
+      && !!(flags & GST_VIDEO_OVERLAY_FORMAT_FLAG_GLOBAL_ALPHA));
 
   /* This assumes we don't need to adjust the format */
   if (wanted_width == width &&

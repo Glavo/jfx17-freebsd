@@ -78,8 +78,6 @@ jvalue convertValueToJValue(JSGlobalObject* globalObject, RootObject* rootObject
 {
     JSLockHolder lock(globalObject);
 
-    VM& vm = globalObject->vm();
-
     jvalue result;
     memset(&result, 0, sizeof(jvalue));
 
@@ -92,7 +90,7 @@ jvalue convertValueToJValue(JSGlobalObject* globalObject, RootObject* rootObject
 
             if (value.isObject()) {
                 JSObject* object = asObject(value);
-                if (object->inherits(vm, JavaRuntimeObject::info())) {
+                if (object->inherits(JavaRuntimeObject::info())) {
                     // Unwrap a Java instance.
                     JavaRuntimeObject* runtimeObject = static_cast<JavaRuntimeObject*>(object);
                     JavaInstance* instance = runtimeObject->getInternalJavaInstance();
@@ -105,7 +103,7 @@ jvalue convertValueToJValue(JSGlobalObject* globalObject, RootObject* rootObject
                         }
                         result.l = instance->javaInstance();
                     }
-                } else if (object->classInfo(vm) == RuntimeArray::info()) {
+                } else if (object->classInfo() == RuntimeArray::info()) {
                     // Input is a JavaScript Array that was originally created from a Java Array
                     RuntimeArray* imp = static_cast<RuntimeArray*>(object);
                     JavaArray* array = static_cast<JavaArray*>(imp->getConcreteArray());
@@ -121,7 +119,7 @@ jvalue convertValueToJValue(JSGlobalObject* globalObject, RootObject* rootObject
                            || (!strcmp(javaClassName, "netscape.javascript.JSObject"))) {
                     // Wrap objects in JSObject instances.
                     JNIEnv* env = getJNIEnv();
-                    if (object->inherits(vm, WebCore::JSNode::info())) {
+                    if (object->inherits(WebCore::JSNode::info())) {
                         WebCore::JSNode* jsnode = static_cast<WebCore::JSNode*>(object);
                         static JGClass nodeImplClass = env->FindClass("com/sun/webkit/dom/NodeImpl");
                         static jmethodID getImplID = env->GetStaticMethodID(nodeImplClass, "getCachedImpl",
@@ -326,7 +324,7 @@ jthrowable dispatchJNICall(int count, RootObject*, jobject obj, bool isStatic, J
       env->SetObjectArrayElement(argsArray, i, args[i]);
     jmethodID invokeMethod =
         env->GetStaticMethodID(utilityCls, "fwkInvokeWithContext",
-                               "(Ljava/lang/reflect/Method;Ljava/lang/Object;[Ljava/lang/Object;Ljava/security/AccessControlContext;)Ljava/lang/Object;");
+                               "(Ljava/lang/reflect/Method;Ljava/lang/Object;[Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;");
     jobject r = env->CallStaticObjectMethod(utilityCls, invokeMethod,
                                             rmethod, obj, argsArray,
                                             accessControlContext);

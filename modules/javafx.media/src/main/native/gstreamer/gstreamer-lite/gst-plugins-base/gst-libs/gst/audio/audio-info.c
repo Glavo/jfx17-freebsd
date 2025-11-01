@@ -25,6 +25,10 @@
 
 #include "audio.h"
 
+#ifdef GSTREAMER_LITE
+#include "gst/glib-compat-private.h"
+#endif // GSTREAMER_LITE
+
 #include <gst/gststructure.h>
 
 #ifndef GST_DISABLE_GST_DEBUG
@@ -61,7 +65,7 @@ ensure_debug_category (void)
 GstAudioInfo *
 gst_audio_info_copy (const GstAudioInfo * info)
 {
-  return g_slice_dup (GstAudioInfo, info);
+  return g_memdup2 (info, sizeof (GstAudioInfo));
 }
 
 /**
@@ -74,7 +78,7 @@ gst_audio_info_copy (const GstAudioInfo * info)
 void
 gst_audio_info_free (GstAudioInfo * info)
 {
-  g_slice_free (GstAudioInfo, info);
+  g_free (info);
 }
 
 G_DEFINE_BOXED_TYPE (GstAudioInfo, gst_audio_info,
@@ -93,7 +97,7 @@ gst_audio_info_new (void)
 {
   GstAudioInfo *info;
 
-  info = g_slice_new (GstAudioInfo);
+  info = g_new (GstAudioInfo, 1);
   gst_audio_info_init (info);
 
   return info;
@@ -101,7 +105,7 @@ gst_audio_info_new (void)
 
 /**
  * gst_audio_info_init:
- * @info: a #GstAudioInfo
+ * @info: (out caller-allocates): a #GstAudioInfo
  *
  * Initialize @info with default values.
  */
@@ -181,7 +185,7 @@ gst_audio_info_set_format (GstAudioInfo * info, GstAudioFormat format,
 
 /**
  * gst_audio_info_from_caps:
- * @info: a #GstAudioInfo
+ * @info: (out caller-allocates): a #GstAudioInfo
  * @caps: a #GstCaps
  *
  * Parse @caps and update @info.
@@ -317,6 +321,28 @@ invalid_channel_mask:
     GST_ERROR ("Invalid channel mask 0x%016" G_GINT64_MODIFIER
         "x for %d channels", channel_mask, channels);
     return FALSE;
+  }
+}
+
+/**
+ * gst_audio_info_new_from_caps:
+ * @caps: a #GstCaps
+ *
+ * Parse @caps to generate a #GstAudioInfo.
+ *
+ * Returns: (nullable): A #GstAudioInfo, or %NULL if @caps couldn't be parsed
+ * Since: 1.20
+ */
+GstAudioInfo *
+gst_audio_info_new_from_caps (const GstCaps * caps)
+{
+  GstAudioInfo *ret = gst_audio_info_new ();
+
+  if (gst_audio_info_from_caps (ret, caps)) {
+    return ret;
+  } else {
+    gst_audio_info_free (ret);
+    return NULL;
   }
 }
 

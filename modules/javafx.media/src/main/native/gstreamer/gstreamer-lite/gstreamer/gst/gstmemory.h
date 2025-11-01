@@ -51,11 +51,16 @@ typedef struct _GstAllocator GstAllocator;
  * @GST_MEMORY_FLAG_READONLY: memory is readonly. It is not allowed to map the
  * memory with #GST_MAP_WRITE.
  * @GST_MEMORY_FLAG_NO_SHARE: memory must not be shared. Copies will have to be
- * made when this memory needs to be shared between buffers.
+ * made when this memory needs to be shared between buffers. (DEPRECATED:
+ * do not use in new code, instead you should create a custom GstAllocator for
+ * memory pooling instead of relying on the GstBuffer they were originally
+ * attached to.)
  * @GST_MEMORY_FLAG_ZERO_PREFIXED: the memory prefix is filled with 0 bytes
  * @GST_MEMORY_FLAG_ZERO_PADDED: the memory padding is filled with 0 bytes
- * @GST_MEMORY_FLAG_PHYSICALLY_CONTIGUOUS: the memory is physically contiguous. (Since: 1.2)
- * @GST_MEMORY_FLAG_NOT_MAPPABLE: the memory can't be mapped via gst_memory_map() without any preconditions. (Since: 1.2)
+ * @GST_MEMORY_FLAG_PHYSICALLY_CONTIGUOUS: the memory is physically
+ * contiguous. (Since: 1.2)
+ * @GST_MEMORY_FLAG_NOT_MAPPABLE: the memory can't be mapped via
+ * gst_memory_map() without any preconditions. (Since: 1.2)
  * @GST_MEMORY_FLAG_LAST: first flag that can be used for custom purposes
  *
  * Flags for wrapped memory.
@@ -204,6 +209,10 @@ typedef enum {
  *
  * A structure containing the result of a map operation such as
  * gst_memory_map(). It contains the data and size.
+ *
+ * #GstMapInfo cannot be used with g_auto() because it is ambiguous whether it
+ * needs to be unmapped using gst_buffer_unmap() or gst_memory_unmap(). Instead,
+ * #GstBufferMapInfo and #GstMemoryMapInfo can be used in that case.
  */
 typedef struct {
   GstMemory *memory;
@@ -354,6 +363,16 @@ void           gst_memory_resize       (GstMemory *mem, gssize offset, gsize siz
 #define        gst_memory_lock(m,f)        gst_mini_object_lock (GST_MINI_OBJECT_CAST (m), (f))
 #define        gst_memory_unlock(m,f)      gst_mini_object_unlock (GST_MINI_OBJECT_CAST (m), (f))
 #define        gst_memory_is_writable(m)   gst_mini_object_is_writable (GST_MINI_OBJECT_CAST (m))
+/**
+ * gst_memory_make_writable:
+ * @m: (transfer full): a #GstMemory
+ *
+ * Returns a writable copy of @m. If the source memory is
+ * already writable, this will simply return the same memory.
+ *
+ * Returns: (transfer full) (nullable): a writable memory (which may or may not be the
+ *     same as @m) or %NULL if copying is required but not possible.
+ */
 #define        gst_memory_make_writable(m) GST_MEMORY_CAST (gst_mini_object_make_writable (GST_MINI_OBJECT_CAST (m)))
 
 /* retrieving data */
@@ -383,6 +402,39 @@ gboolean       gst_memory_is_span      (GstMemory *mem1, GstMemory *mem2, gsize 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(GstMemory, gst_memory_unref)
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(GstAllocator, gst_object_unref)
+
+/**
+ * GstMemoryMapInfo: (skip):
+ *
+ * Alias for #GstMapInfo to be used with g_auto():
+ * ```c
+ * void my_func(GstMemory *mem)
+ * {
+ *   g_auto(GstMemoryMapInfo) map = GST_MAP_INFO_INIT;
+ *   if (!gst_memory_map(mem, &map, GST_MAP_READWRITE))
+ *     return;
+ *   ...
+ *   // No need to call gst_memory_unmap()
+ * }
+ * ```
+ *
+ * #GstMapInfo cannot be used with g_auto() because it is ambiguous whether it
+ * needs to be unmapped using gst_buffer_unmap() or gst_memory_unmap().
+ *
+ * See also #GstBufferMapInfo.
+ *
+ * Since: 1.22
+ */
+typedef GstMapInfo GstMemoryMapInfo;
+
+static inline void _gst_memory_map_info_clear(GstMemoryMapInfo *info)
+{
+  if (G_LIKELY (info->memory)) {
+    gst_memory_unmap (info->memory, info);
+  }
+}
+
+G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(GstMemoryMapInfo, _gst_memory_map_info_clear)
 
 G_END_DECLS
 

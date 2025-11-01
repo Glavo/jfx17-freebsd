@@ -27,10 +27,9 @@
 
 #include "CertificateSummary.h"
 #include "NotImplemented.h"
+#include "WebCorePersistentCoders.h"
 #include <wtf/Vector.h>
-#include <wtf/persistence/PersistentCoders.h>
-#include <wtf/persistence/PersistentDecoder.h>
-#include <wtf/persistence/PersistentEncoder.h>
+
 
 namespace WebCore {
 
@@ -51,7 +50,7 @@ public:
 
     bool containsNonRootSHA1SignedCertificate() const { notImplemented(); return false; }
 
-    Optional<CertificateSummary> summary() const { notImplemented(); return WTF::nullopt; }
+    std::optional<CertificateSummary> summary() const { notImplemented(); return std::nullopt; }
 
     bool isEmpty() const { return m_certificateChain.isEmpty(); }
 
@@ -68,22 +67,3 @@ inline bool operator==(const CertificateInfo& a, const CertificateInfo& b)
 }
 
 } // namespace WebCore
-
-namespace WTF {
-namespace Persistence {
-
-template<> struct Coder<WebCore::CertificateInfo> {
-    static void encode(Encoder&, const WebCore::CertificateInfo&)
-    {
-        notImplemented();
-    }
-
-    static Optional<WebCore::CertificateInfo> decode(Decoder&)
-    {
-        notImplemented();
-        return WTF::nullopt;
-    }
-};
-
-} // namespace WTF::Persistence
-} // namespace WTF

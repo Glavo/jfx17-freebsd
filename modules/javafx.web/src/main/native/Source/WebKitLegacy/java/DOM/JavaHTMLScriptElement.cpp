@@ -28,6 +28,7 @@
 
 #include <WebCore/HTMLNames.h>
 #include <WebCore/HTMLScriptElement.h>
+#include <WebCore/ElementInlines.h>
 #include <WebCore/JSExecState.h>
 
 #include <wtf/RefPtr.h>
@@ -65,7 +66,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLScriptElementImpl_getHtmlF
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLScriptElementImpl_setHtmlForImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::forAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::forAttr, AtomString {String(env, value)});
 }
 
 JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLScriptElementImpl_getEventImpl(JNIEnv* env, jclass, jlong peer)
@@ -77,7 +78,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLScriptElementImpl_getEvent
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLScriptElementImpl_setEventImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::eventAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::eventAttr, AtomString {String(env, value)});
 }
 
 JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLScriptElementImpl_getCharsetImpl(JNIEnv* env, jclass, jlong peer)
@@ -89,7 +90,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLScriptElementImpl_getChars
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLScriptElementImpl_setCharsetImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::charsetAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::charsetAttr, AtomString {String(env, value)});
 }
 
 JNIEXPORT jboolean JNICALL Java_com_sun_webkit_dom_HTMLScriptElementImpl_getAsyncImpl(JNIEnv*, jclass, jlong peer)
@@ -125,7 +126,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLScriptElementImpl_getSrcIm
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLScriptElementImpl_setSrcImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::srcAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::srcAttr, AtomString {String(env, value)});
 }
 
 JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLScriptElementImpl_getTypeImpl(JNIEnv* env, jclass, jlong peer)
@@ -137,7 +138,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLScriptElementImpl_getTypeI
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLScriptElementImpl_setTypeImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::typeAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::typeAttr, AtomString {String(env, value)});
 }
 
 JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLScriptElementImpl_getCrossOriginImpl(JNIEnv* env, jclass, jlong peer)
@@ -149,7 +150,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLScriptElementImpl_getCross
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLScriptElementImpl_setCrossOriginImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setCrossOrigin(String(env, value));
+    IMPL->setCrossOrigin(AtomString{String(env, value)});
 }
 
 }

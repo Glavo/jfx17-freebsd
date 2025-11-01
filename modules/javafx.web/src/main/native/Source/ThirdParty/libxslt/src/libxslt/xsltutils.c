@@ -12,24 +12,23 @@
 #define IN_LIBXSLT
 #include "libxslt.h"
 
-#ifndef XSLT_NEED_TRIO
+#ifndef    XSLT_NEED_TRIO
 #include <stdio.h>
 #else
 #include <trio.h>
 #endif
 
 #include <string.h>
+#include <stdlib.h>
+#include <stdarg.h>
 #include <time.h>
+
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#ifdef HAVE_STDLIB_H
-#include <stdlib.h>
-#endif
-#include <stdarg.h>
 
 #include <libxml/xmlmemory.h>
 #include <libxml/tree.h>
@@ -42,14 +41,15 @@
 #include "imports.h"
 #include "transform.h"
 
-#if defined(_WIN32) && !defined(__CYGWIN__)
+#if defined(_WIN32)
+#include <windows.h>
 #define XSLT_WIN32_PERFORMANCE_COUNTER
 #endif
 
 /************************************************************************
- *                                  *
- *          Convenience function                *
- *                                  *
+ *                                    *
+ *            Convenience function                *
+ *                                    *
  ************************************************************************/
 
 /**
@@ -305,6 +305,66 @@ error:
     return(-1);
 }
 
+/**
+ * xsltGetUTF8CharZ:
+ * @utf:  a sequence of UTF-8 encoded bytes
+ * @len:  a pointer to @bytes len
+ *
+ * Read one UTF8 Char from a null-terminated string.
+ *
+ * Returns the char value or -1 in case of error and update @len with the
+ *        number of bytes used
+ */
+int
+xsltGetUTF8CharZ(const unsigned char *utf, int *len) {
+    unsigned int c;
+
+    if (utf == NULL)
+    goto error;
+    if (len == NULL)
+    goto error;
+
+    c = utf[0];
+    if (c & 0x80) {
+    if ((utf[1] & 0xc0) != 0x80)
+        goto error;
+    if ((c & 0xe0) == 0xe0) {
+        if ((utf[2] & 0xc0) != 0x80)
+        goto error;
+        if ((c & 0xf0) == 0xf0) {
+        if ((c & 0xf8) != 0xf0 || (utf[3] & 0xc0) != 0x80)
+            goto error;
+        *len = 4;
+        /* 4-byte code */
+        c = (utf[0] & 0x7) << 18;
+        c |= (utf[1] & 0x3f) << 12;
+        c |= (utf[2] & 0x3f) << 6;
+        c |= utf[3] & 0x3f;
+        } else {
+          /* 3-byte code */
+        *len = 3;
+        c = (utf[0] & 0xf) << 12;
+        c |= (utf[1] & 0x3f) << 6;
+        c |= utf[2] & 0x3f;
+        }
+    } else {
+      /* 2-byte code */
+        *len = 2;
+        c = (utf[0] & 0x1f) << 6;
+        c |= utf[1] & 0x3f;
+    }
+    } else {
+    /* 1-byte code */
+    *len = 1;
+    }
+    return(c);
+
+error:
+    if (len != NULL)
+    *len = 0;
+    return(-1);
+}
+
 #ifdef XSLT_REFACTORED
 
 /**
@@ -415,9 +475,9 @@ xsltPointerListClear(xsltPointerListPtr list)
 #endif /* XSLT_REFACTORED */
 
 /************************************************************************
- *                                  *
- *      Handling of XSLT stylesheets messages           *
- *                                  *
+ *                                    *
+ *        Handling of XSLT stylesheets messages            *
+ *                                    *
  ************************************************************************/
 
 /**
@@ -469,39 +529,39 @@ xsltMessage(xsltTransformContextPtr ctxt, xmlNodePtr node, xmlNodePtr inst) {
 }
 
 /************************************************************************
- *                                  *
- *      Handling of out of context errors           *
- *                                  *
+ *                                    *
+ *        Handling of out of context errors            *
+ *                                    *
  ************************************************************************/
 
 #define XSLT_GET_VAR_STR(msg, str) {                \
-    int       size;                     \
+    int       size;                        \
     int       chars;                        \
-    char      *larger;                      \
-    va_list   ap;                       \
+    char      *larger;                        \
+    va_list   ap;                        \
                                 \
-    str = (char *) xmlMalloc(150);              \
+    str = (char *) xmlMalloc(150);                \
     if (str == NULL)                        \
-    return;                         \
+    return;                            \
                                 \
-    size = 150;                         \
+    size = 150;                            \
                                 \
-    while (size < 64000) {                  \
-    va_start(ap, msg);                  \
-    chars = vsnprintf(str, size, msg, ap);          \
-    va_end(ap);                     \
-    if ((chars > -1) && (chars < size))         \
-        break;                      \
-    if (chars > -1)                     \
-        size += chars + 1;                  \
+    while (size < 64000) {                    \
+    va_start(ap, msg);                    \
+    chars = vsnprintf(str, size, msg, ap);            \
+    va_end(ap);                        \
+    if ((chars > -1) && (chars < size))            \
+        break;                        \
+    if (chars > -1)                        \
+        size += chars + 1;                    \
     else                            \
         size += 100;                    \
     if ((larger = (char *) xmlRealloc(str, size)) == NULL) {\
-        xmlFree(str);                   \
-        return;                     \
-    }                           \
-    str = larger;                       \
-    }                               \
+        xmlFree(str);                    \
+        return;                        \
+    }                            \
+    str = larger;                        \
+    }                                \
 }
 /**
  * xsltGenericErrorDefaultFunc:
@@ -725,9 +785,9 @@ xsltTransformError(xsltTransformContextPtr ctxt,
 }
 
 /************************************************************************
- *                                  *
- *              QNames                  *
- *                                  *
+ *                                    *
+ *                QNames                    *
+ *                                    *
  ************************************************************************/
 
 /**
@@ -911,9 +971,9 @@ xsltGetQNameURI2(xsltStylesheetPtr style, xmlNodePtr node,
 }
 
 /************************************************************************
- *                                  *
- *              Sorting                 *
- *                                  *
+ *                                    *
+ *                Sorting                    *
+ *                                    *
  ************************************************************************/
 
 /**
@@ -948,21 +1008,24 @@ xsltDocumentSortFunction(xmlNodeSetPtr list) {
 }
 
 /**
- * xsltComputeSortResult:
+ * xsltComputeSortResultInternal:
  * @ctxt:  a XSLT process context
- * @sort:  node list
+ * @sort:  xsl:sort node
+ * @number:  data-type is number
+ * @locale:  transform strings according to locale
  *
  * reorder the current node list accordingly to the set of sorting
  * requirement provided by the array of nodes.
  *
  * Returns a ordered XPath nodeset or NULL in case of error.
  */
-xmlXPathObjectPtr *
-xsltComputeSortResult(xsltTransformContextPtr ctxt, xmlNodePtr sort) {
+static xmlXPathObjectPtr *
+xsltComputeSortResultInternal(xsltTransformContextPtr ctxt, xmlNodePtr sort,
+                              int number, void *locale) {
 #ifdef XSLT_REFACTORED
     xsltStyleItemSortPtr comp;
 #else
-    xsltStylePreCompPtr comp;
+    const xsltStylePreComp *comp;
 #endif
     xmlXPathObjectPtr *results = NULL;
     xmlNodeSetPtr list = NULL;
@@ -971,7 +1034,7 @@ xsltComputeSortResult(xsltTransformContextPtr ctxt, xmlNodePtr sort) {
     int i;
     xmlNodePtr oldNode;
     xmlNodePtr oldInst;
-    int oldPos, oldSize ;
+    int    oldPos, oldSize ;
     int oldNsNr;
     xmlNsPtr *oldNamespaces;
 
@@ -1002,8 +1065,8 @@ xsltComputeSortResult(xsltTransformContextPtr ctxt, xmlNodePtr sort) {
     return(NULL);
     }
 
-    oldNode = ctxt->node;
     oldInst = ctxt->inst;
+    oldNode = ctxt->xpathCtxt->node;
     oldPos = ctxt->xpathCtxt->proximityPosition;
     oldSize = ctxt->xpathCtxt->contextSize;
     oldNsNr = ctxt->xpathCtxt->nsNr;
@@ -1030,10 +1093,12 @@ xsltComputeSortResult(xsltTransformContextPtr ctxt, xmlNodePtr sort) {
     if (res != NULL) {
         if (res->type != XPATH_STRING)
         res = xmlXPathConvertString(res);
-        if (comp->number)
+        if (number)
         res = xmlXPathConvertNumber(res);
-        res->index = i; /* Save original pos for dupl resolv */
-        if (comp->number) {
+        }
+        if (res != NULL) {
+        res->index = i;    /* Save original pos for dupl resolv */
+        if (number) {
         if (res->type == XPATH_NUMBER) {
             results[i] = res;
         } else {
@@ -1045,10 +1110,17 @@ xsltComputeSortResult(xsltTransformContextPtr ctxt, xmlNodePtr sort) {
         }
         } else {
         if (res->type == XPATH_STRING) {
-            if (comp->locale != (xsltLocale)0) {
+            if (locale != NULL) {
             xmlChar *str = res->stringval;
-            res->stringval = (xmlChar *) xsltStrxfrm(comp->locale, str);
-            xmlFree(str);
+                        xmlChar *sortKey = ctxt->genSortKey(locale, str);
+
+                        if (sortKey == NULL) {
+                            xsltTransformError(ctxt, NULL, sort,
+                                "xsltComputeSortResult: sort key is null\n");
+                        } else {
+                            res->stringval = sortKey;
+                            xmlFree(str);
+                        }
             }
 
             results[i] = res;
@@ -1065,14 +1137,35 @@ xsltComputeSortResult(xsltTransformContextPtr ctxt, xmlNodePtr sort) {
         results[i] = NULL;
     }
     }
-    ctxt->node = oldNode;
     ctxt->inst = oldInst;
+    ctxt->xpathCtxt->node = oldNode;
     ctxt->xpathCtxt->contextSize = oldSize;
     ctxt->xpathCtxt->proximityPosition = oldPos;
     ctxt->xpathCtxt->nsNr = oldNsNr;
     ctxt->xpathCtxt->namespaces = oldNamespaces;
 
     return(results);
+}
+
+/**
+ * xsltComputeSortResult:
+ * @ctxt:  a XSLT process context
+ * @sort:  node list
+ *
+ * reorder the current node list accordingly to the set of sorting
+ * requirement provided by the array of nodes.
+ *
+ * Returns a ordered XPath nodeset or NULL in case of error.
+ */
+xmlXPathObjectPtr *
+xsltComputeSortResult(xsltTransformContextPtr ctxt, xmlNodePtr sort) {
+    const xsltStylePreComp *comp = sort->psvi;
+    int number = 0;
+
+    if (comp != NULL)
+        number = comp->number;
+    return xsltComputeSortResultInternal(ctxt, sort, number,
+                                         /* locale */ NULL);
 }
 
 /**
@@ -1090,19 +1183,19 @@ xsltDefaultSortFunction(xsltTransformContextPtr ctxt, xmlNodePtr *sorts,
 #ifdef XSLT_REFACTORED
     xsltStyleItemSortPtr comp;
 #else
-    xsltStylePreCompPtr comp;
+    const xsltStylePreComp *comp;
 #endif
     xmlXPathObjectPtr *resultsTab[XSLT_MAX_SORT];
     xmlXPathObjectPtr *results = NULL, *res;
     xmlNodeSetPtr list = NULL;
-    int descending, number, desc, numb;
     int len = 0;
     int i, j, incr;
     int tst;
     int depth;
     xmlNodePtr node;
     xmlXPathObjectPtr tmp;
-    int tempstype[XSLT_MAX_SORT], temporder[XSLT_MAX_SORT];
+    int number[XSLT_MAX_SORT], desc[XSLT_MAX_SORT];
+    void *locale[XSLT_MAX_SORT];
 
     if ((ctxt == NULL) || (sorts == NULL) || (nbsorts <= 0) ||
     (nbsorts >= XSLT_MAX_SORT))
@@ -1118,62 +1211,76 @@ xsltDefaultSortFunction(xsltTransformContextPtr ctxt, xmlNodePtr *sorts,
     return; /* nothing to do */
 
     for (j = 0; j < nbsorts; j++) {
+        xmlChar *lang;
+
     comp = sorts[j]->psvi;
-    tempstype[j] = 0;
     if ((comp->stype == NULL) && (comp->has_stype != 0)) {
-        comp->stype =
+        xmlChar *stype =
         xsltEvalAttrValueTemplate(ctxt, sorts[j],
-                      (const xmlChar *) "data-type",
-                      XSLT_NAMESPACE);
-        if (comp->stype != NULL) {
-        tempstype[j] = 1;
-        if (xmlStrEqual(comp->stype, (const xmlChar *) "text"))
-            comp->number = 0;
-        else if (xmlStrEqual(comp->stype, (const xmlChar *) "number"))
-            comp->number = 1;
+                      BAD_CAST "data-type", NULL);
+        number[j] = 0;
+        if (stype != NULL) {
+        if (xmlStrEqual(stype, (const xmlChar *) "text"))
+            ;
+        else if (xmlStrEqual(stype, (const xmlChar *) "number"))
+            number[j] = 1;
         else {
             xsltTransformError(ctxt, NULL, sorts[j],
               "xsltDoSortFunction: no support for data-type = %s\n",
-                     comp->stype);
-            comp->number = 0; /* use default */
+              stype);
         }
+                xmlFree(stype);
         }
-    }
-    temporder[j] = 0;
+    } else {
+        number[j] = comp->number;
+        }
     if ((comp->order == NULL) && (comp->has_order != 0)) {
-        comp->order = xsltEvalAttrValueTemplate(ctxt, sorts[j],
-                            (const xmlChar *) "order",
-                            XSLT_NAMESPACE);
-        if (comp->order != NULL) {
-        temporder[j] = 1;
-        if (xmlStrEqual(comp->order, (const xmlChar *) "ascending"))
-            comp->descending = 0;
-        else if (xmlStrEqual(comp->order,
-                     (const xmlChar *) "descending"))
-            comp->descending = 1;
+        xmlChar *order = xsltEvalAttrValueTemplate(ctxt, sorts[j],
+                                                       BAD_CAST "order", NULL);
+        desc[j] = 0;
+        if (order != NULL) {
+        if (xmlStrEqual(order, (const xmlChar *) "ascending"))
+            ;
+        else if (xmlStrEqual(order, (const xmlChar *) "descending"))
+            desc[j] = 1;
         else {
             xsltTransformError(ctxt, NULL, sorts[j],
                  "xsltDoSortFunction: invalid value %s for order\n",
-                     comp->order);
-            comp->descending = 0; /* use default */
+                 order);
         }
+                xmlFree(order);
         }
+    } else {
+        desc[j] = comp->descending;
     }
+    if ((comp->lang == NULL) && (comp->has_lang != 0)) {
+            lang = xsltEvalAttrValueTemplate(ctxt, sorts[j],
+                              (xmlChar *) "lang",
+                              NULL);
+    } else {
+            lang = (xmlChar *) comp->lang;
+        }
+        if (lang != NULL) {
+            locale[j] = ctxt->newLocale(lang, comp->lower_first);
+            if (lang != comp->lang)
+                xmlFree(lang);
+        } else {
+            locale[j] = NULL;
+        }
     }
 
     len = list->nodeNr;
 
-    resultsTab[0] = xsltComputeSortResult(ctxt, sorts[0]);
+    resultsTab[0] = xsltComputeSortResultInternal(ctxt, sorts[0], number[0],
+                                                  locale[0]);
     for (i = 1;i < XSLT_MAX_SORT;i++)
     resultsTab[i] = NULL;
 
     results = resultsTab[0];
 
     comp = sorts[0]->psvi;
-    descending = comp->descending;
-    number = comp->number;
     if (results == NULL)
-    return;
+    goto cleanup;
 
     /* Shell's sort of node-set */
     for (incr = len / 2; incr > 0; incr /= 2) {
@@ -1186,7 +1293,7 @@ xsltDefaultSortFunction(xsltTransformContextPtr ctxt, xmlNodePtr *sorts,
         if (results[j] == NULL)
             tst = 1;
         else {
-            if (number) {
+            if (number[0]) {
             /* We make NaN smaller than number in accordance
                with XSLT spec */
             if (xmlXPathIsNaN(results[j]->floatval)) {
@@ -1203,16 +1310,11 @@ xsltDefaultSortFunction(xsltTransformContextPtr ctxt, xmlNodePtr *sorts,
                 results[j + incr]->floatval)
                 tst = 1;
             else tst = -1;
-            } else if(comp->locale != (xsltLocale)0) {
-            tst = xsltLocaleStrcmp(
-                comp->locale,
-                (xsltLocaleChar *) results[j]->stringval,
-                (xsltLocaleChar *) results[j + incr]->stringval);
             } else {
             tst = xmlStrcmp(results[j]->stringval,
                      results[j + incr]->stringval);
             }
-            if (descending)
+            if (desc[0])
             tst = -tst;
         }
         if (tst == 0) {
@@ -1226,16 +1328,17 @@ xsltDefaultSortFunction(xsltTransformContextPtr ctxt, xmlNodePtr *sorts,
             comp = sorts[depth]->psvi;
             if (comp == NULL)
                 break;
-            desc = comp->descending;
-            numb = comp->number;
 
             /*
              * Compute the result of the next level for the
              * full set, this might be optimized ... or not
              */
             if (resultsTab[depth] == NULL)
-                resultsTab[depth] = xsltComputeSortResult(ctxt,
-                                        sorts[depth]);
+                resultsTab[depth] =
+                                xsltComputeSortResultInternal(ctxt,
+                                                              sorts[depth],
+                                                              number[depth],
+                                                              locale[depth]);
             res = resultsTab[depth];
             if (res == NULL)
                 break;
@@ -1245,7 +1348,7 @@ xsltDefaultSortFunction(xsltTransformContextPtr ctxt, xmlNodePtr *sorts,
             } else if (res[j+incr] == NULL) {
                 tst = -1;
             } else {
-                if (numb) {
+                if (number[depth]) {
                 /* We make NaN smaller than number in
                    accordance with XSLT spec */
                 if (xmlXPathIsNaN(res[j]->floatval)) {
@@ -1264,16 +1367,11 @@ xsltDefaultSortFunction(xsltTransformContextPtr ctxt, xmlNodePtr *sorts,
                     res[j + incr]->floatval)
                     tst = 1;
                 else tst = -1;
-                } else if(comp->locale != (xsltLocale)0) {
-                tst = xsltLocaleStrcmp(
-                    comp->locale,
-                    (xsltLocaleChar *) res[j]->stringval,
-                    (xsltLocaleChar *) res[j + incr]->stringval);
                 } else {
                 tst = xmlStrcmp(res[j]->stringval,
                          res[j + incr]->stringval);
                 }
-                if (desc)
+                if (desc[depth])
                 tst = -tst;
             }
 
@@ -1315,18 +1413,11 @@ xsltDefaultSortFunction(xsltTransformContextPtr ctxt, xmlNodePtr *sorts,
     }
     }
 
+cleanup:
     for (j = 0; j < nbsorts; j++) {
-    comp = sorts[j]->psvi;
-    if (tempstype[j] == 1) {
-        /* The data-type needs to be recomputed each time */
-        xmlFree((void *)(comp->stype));
-        comp->stype = NULL;
-    }
-    if (temporder[j] == 1) {
-        /* The order needs to be recomputed each time */
-        xmlFree((void *)(comp->order));
-        comp->order = NULL;
-    }
+        if (locale[j] != NULL) {
+            ctxt->freeLocale(locale[j]);
+        }
     if (resultsTab[j] != NULL) {
         for (i = 0;i < len;i++)
         xmlXPathFreeObject(resultsTab[j][i]);
@@ -1366,6 +1457,8 @@ xsltDoSortFunction(xsltTransformContextPtr ctxt, xmlNodePtr * sorts,
  * xsltSetSortFunc:
  * @handler:  the new handler function
  *
+ * DEPRECATED: Use xsltSetCtxtLocaleHandlers.
+ *
  * Function to reset the global handler for XSLT sorting.
  * If the handler is NULL, the default sort function will be used.
  */
@@ -1382,6 +1475,8 @@ xsltSetSortFunc(xsltSortFunc handler) {
  * @ctxt:  a XSLT process context
  * @handler:  the new handler function
  *
+ * DEPRECATED: Use xsltSetCtxtLocaleHandlers.
+ *
  * Function to set the handler for XSLT sorting
  * for the specified context.
  * If the handler is NULL, then the global
@@ -1392,10 +1487,32 @@ xsltSetCtxtSortFunc(xsltTransformContextPtr ctxt, xsltSortFunc handler) {
     ctxt->sortfunc = handler;
 }
 
+/**
+ * xsltSetCtxtLocaleHandlers:
+ * @ctxt:  an XSLT transform context
+ * @newLocale:  locale constructor
+ * @freeLocale:  locale destructor
+ * @genSortKey:  sort key generator
+ *
+ * Set the locale handlers.
+ */
+void
+xsltSetCtxtLocaleHandlers(xsltTransformContextPtr ctxt,
+                          xsltNewLocaleFunc newLocale,
+                          xsltFreeLocaleFunc freeLocale,
+                          xsltGenSortKeyFunc genSortKey) {
+    if (ctxt == NULL)
+        return;
+
+    ctxt->newLocale = newLocale;
+    ctxt->freeLocale = freeLocale;
+    ctxt->genSortKey = genSortKey;
+}
+
 /************************************************************************
- *                                  *
- *              Parsing options             *
- *                                  *
+ *                                    *
+ *                Parsing options                *
+ *                                    *
  ************************************************************************/
 
 /**
@@ -1427,9 +1544,9 @@ xsltSetCtxtParseOptions(xsltTransformContextPtr ctxt, int options)
 }
 
 /************************************************************************
- *                                  *
- *              Output                  *
- *                                  *
+ *                                    *
+ *                Output                    *
+ *                                    *
  ************************************************************************/
 
 /**
@@ -1633,13 +1750,12 @@ xsltSaveResultToFilename(const char *URL, xmlDocPtr result,
 
     XSLT_GET_IMPORT_PTR(encoding, style, encoding)
     if (encoding != NULL) {
-    xmlCharEncodingHandlerPtr encoder;
+    xmlCharEncodingHandlerPtr encoder = NULL;
 
-    encoder = xmlFindCharEncodingHandler((char *)encoding);
-    if ((encoder != NULL) &&
-        (xmlStrEqual((const xmlChar *)encoder->name,
-             (const xmlChar *) "UTF-8")))
-        encoder = NULL;
+        /* Don't use UTF-8 dummy encoder */
+        if ((xmlStrcasecmp(encoding, BAD_CAST "UTF-8") != 0) &&
+            (xmlStrcasecmp(encoding, BAD_CAST "UTF8") != 0))
+        encoder = xmlFindCharEncodingHandler((char *) encoding);
     buf = xmlOutputBufferCreateFilename(URL, encoder, compression);
     } else {
     buf = xmlOutputBufferCreateFilename(URL, NULL, compression);
@@ -1676,13 +1792,12 @@ xsltSaveResultToFile(FILE *file, xmlDocPtr result, xsltStylesheetPtr style) {
 
     XSLT_GET_IMPORT_PTR(encoding, style, encoding)
     if (encoding != NULL) {
-    xmlCharEncodingHandlerPtr encoder;
+    xmlCharEncodingHandlerPtr encoder = NULL;
 
-    encoder = xmlFindCharEncodingHandler((char *)encoding);
-    if ((encoder != NULL) &&
-        (xmlStrEqual((const xmlChar *)encoder->name,
-             (const xmlChar *) "UTF-8")))
-        encoder = NULL;
+        /* Don't use UTF-8 dummy encoder */
+        if ((xmlStrcasecmp(encoding, BAD_CAST "UTF-8") != 0) &&
+            (xmlStrcasecmp(encoding, BAD_CAST "UTF8") != 0))
+        encoder = xmlFindCharEncodingHandler((char *) encoding);
     buf = xmlOutputBufferCreateFile(file, encoder);
     } else {
     buf = xmlOutputBufferCreateFile(file, NULL);
@@ -1720,13 +1835,12 @@ xsltSaveResultToFd(int fd, xmlDocPtr result, xsltStylesheetPtr style) {
 
     XSLT_GET_IMPORT_PTR(encoding, style, encoding)
     if (encoding != NULL) {
-    xmlCharEncodingHandlerPtr encoder;
+    xmlCharEncodingHandlerPtr encoder = NULL;
 
-    encoder = xmlFindCharEncodingHandler((char *)encoding);
-    if ((encoder != NULL) &&
-        (xmlStrEqual((const xmlChar *)encoder->name,
-             (const xmlChar *) "UTF-8")))
-        encoder = NULL;
+        /* Don't use UTF-8 dummy encoder */
+        if ((xmlStrcasecmp(encoding, BAD_CAST "UTF-8") != 0) &&
+            (xmlStrcasecmp(encoding, BAD_CAST "UTF8") != 0))
+        encoder = xmlFindCharEncodingHandler((char *) encoding);
     buf = xmlOutputBufferCreateFd(fd, encoder);
     } else {
     buf = xmlOutputBufferCreateFd(fd, NULL);
@@ -1763,13 +1877,12 @@ xsltSaveResultToString(xmlChar **doc_txt_ptr, int * doc_txt_len,
 
     XSLT_GET_IMPORT_PTR(encoding, style, encoding)
     if (encoding != NULL) {
-    xmlCharEncodingHandlerPtr encoder;
+    xmlCharEncodingHandlerPtr encoder = NULL;
 
-    encoder = xmlFindCharEncodingHandler((char *)encoding);
-    if ((encoder != NULL) &&
-        (xmlStrEqual((const xmlChar *)encoder->name,
-             (const xmlChar *) "UTF-8")))
-        encoder = NULL;
+        /* Don't use UTF-8 dummy encoder */
+        if ((xmlStrcasecmp(encoding, BAD_CAST "UTF-8") != 0) &&
+            (xmlStrcasecmp(encoding, BAD_CAST "UTF8") != 0))
+        encoder = xmlFindCharEncodingHandler((char *) encoding);
     buf = xmlAllocOutputBuffer(encoder);
     } else {
     buf = xmlAllocOutputBuffer(NULL);
@@ -1798,12 +1911,147 @@ xsltSaveResultToString(xmlChar **doc_txt_ptr, int * doc_txt_len,
     return 0;
 }
 
+/**
+ * xsltGetSourceNodeFlags:
+ * @node:  Node from source document
+ *
+ * Returns the flags for a source node.
+ */
+int
+xsltGetSourceNodeFlags(xmlNodePtr node) {
+    /*
+     * Squeeze the bit flags into the upper bits of
+     *
+     * - 'int properties' member in struct _xmlDoc
+     * - 'xmlAttributeType atype' member in struct _xmlAttr
+     * - 'unsigned short extra' member in struct _xmlNode
+     */
+    switch (node->type) {
+        case XML_DOCUMENT_NODE:
+        case XML_HTML_DOCUMENT_NODE:
+            return ((xmlDocPtr) node)->properties >> 27;
+
+        case XML_ATTRIBUTE_NODE:
+            return ((xmlAttrPtr) node)->atype >> 27;
+
+        case XML_ELEMENT_NODE:
+        case XML_TEXT_NODE:
+        case XML_CDATA_SECTION_NODE:
+        case XML_PI_NODE:
+        case XML_COMMENT_NODE:
+            return node->extra >> 12;
+
+        default:
+            return 0;
+    }
+}
+
+/**
+ * xsltSetSourceNodeFlags:
+ * @node:  Node from source document
+ * @flags:  Flags
+ *
+ * Sets the specified flags to 1.
+ *
+ * Returns 0 on success, -1 on error.
+ */
+int
+xsltSetSourceNodeFlags(xsltTransformContextPtr ctxt, xmlNodePtr node,
+                       int flags) {
+    if (node->doc == ctxt->initialContextDoc)
+        ctxt->sourceDocDirty = 1;
+
+    switch (node->type) {
+        case XML_DOCUMENT_NODE:
+        case XML_HTML_DOCUMENT_NODE:
+            ((xmlDocPtr) node)->properties |= flags << 27;
+            return 0;
+
+        case XML_ATTRIBUTE_NODE:
+            ((xmlAttrPtr) node)->atype |= flags << 27;
+            return 0;
+
+        case XML_ELEMENT_NODE:
+        case XML_TEXT_NODE:
+        case XML_CDATA_SECTION_NODE:
+        case XML_PI_NODE:
+        case XML_COMMENT_NODE:
+            node->extra |= flags << 12;
+            return 0;
+
+        default:
+            return -1;
+    }
+}
+
+/**
+ * xsltClearSourceNodeFlags:
+ * @node:  Node from source document
+ * @flags:  Flags
+ *
+ * Sets the specified flags to 0.
+ *
+ * Returns 0 on success, -1 on error.
+ */
+int
+xsltClearSourceNodeFlags(xmlNodePtr node, int flags) {
+    switch (node->type) {
+        case XML_DOCUMENT_NODE:
+        case XML_HTML_DOCUMENT_NODE:
+            ((xmlDocPtr) node)->properties &= ~(flags << 27);
+            return 0;
+
+        case XML_ATTRIBUTE_NODE:
+            ((xmlAttrPtr) node)->atype &= ~(flags << 27);
+            return 0;
+
+        case XML_ELEMENT_NODE:
+        case XML_TEXT_NODE:
+        case XML_CDATA_SECTION_NODE:
+        case XML_PI_NODE:
+        case XML_COMMENT_NODE:
+            node->extra &= ~(flags << 12);
+            return 0;
+
+        default:
+            return -1;
+    }
+}
+
+/**
+ * xsltGetPSVIPtr:
+ * @cur:  Node
+ *
+ * Returns a pointer to the psvi member of a node or NULL on error.
+ */
+void **
+xsltGetPSVIPtr(xmlNodePtr cur) {
+    switch (cur->type) {
+        case XML_DOCUMENT_NODE:
+        case XML_HTML_DOCUMENT_NODE:
+            return &((xmlDocPtr) cur)->psvi;
+
+        case XML_ATTRIBUTE_NODE:
+            return &((xmlAttrPtr) cur)->psvi;
+
+        case XML_ELEMENT_NODE:
+        case XML_TEXT_NODE:
+        case XML_CDATA_SECTION_NODE:
+        case XML_PI_NODE:
+        case XML_COMMENT_NODE:
+            return &cur->psvi;
+
+        default:
+            return NULL;
+    }
+}
+
 #ifdef WITH_PROFILER
 
 /************************************************************************
- *                                  *
- *      Generating profiling information            *
- *                                  *
+ *                                    *
+ *        Generating profiling information            *
+ *                                    *
  ************************************************************************/
 
 static long calibration = -1;
@@ -2163,9 +2411,9 @@ xsltSaveProfiling(xsltTransformContextPtr ctxt, FILE *output) {
 }
 
 /************************************************************************
- *                                  *
- *      Fetching profiling information              *
- *                                  *
+ *                                    *
+ *        Fetching profiling information                *
+ *                                    *
  ************************************************************************/
 
 /**
@@ -2280,9 +2528,9 @@ xsltGetProfileInformation(xsltTransformContextPtr ctxt)
 #endif /* WITH_PROFILER */
 
 /************************************************************************
- *                                  *
- *      Hooks for libxml2 XPath                 *
- *                                  *
+ *                                    *
+ *        Hooks for libxml2 XPath                    *
+ *                                    *
  ************************************************************************/
 
 /**
@@ -2345,9 +2593,9 @@ xsltXPathCompile(xsltStylesheetPtr style, const xmlChar *str) {
 }
 
 /************************************************************************
- *                                  *
- *      Hooks for the debugger                  *
- *                                  *
+ *                                    *
+ *        Hooks for the debugger                    *
+ *                                    *
  ************************************************************************/
 
 int xslDebugStatus;

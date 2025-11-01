@@ -193,6 +193,45 @@ gst_video_guess_framerate (GstClockTime duration, gint * dest_n, gint * dest_d)
 
 #ifndef GSTREAMER_LITE
 /**
+ * gst_video_is_common_aspect_ratio:
+ * @width: Width of the video frame
+ * @height: Height of the video frame
+ * @par_n: Pixel aspect ratio numerator
+ * @par_d: Pixel aspect ratio denominator
+ *
+ * Given a frame's dimensions and pixel aspect ratio, this function will
+ * calculate the frame's aspect ratio and compare it against a set of
+ * common well-known "standard" aspect ratios.
+ *
+ * Returns: %TRUE if a known "standard" aspect ratio was
+ * recognised, and %FALSE otherwise.
+ *
+ * Since: 1.22
+ */
+gboolean
+gst_video_is_common_aspect_ratio (gint width, gint height, gint par_n,
+    gint par_d)
+{
+  gint dar_n, dar_d;
+
+  gst_util_fraction_multiply (width, height, par_n, par_d, &dar_n, &dar_d);
+
+  if (dar_n == 16 && dar_d == 9)
+    return TRUE;
+  if (dar_n == 4 && dar_d == 3)
+    return TRUE;
+  if (dar_n == 14 && dar_d == 9)
+    return TRUE;
+  if (dar_n == 8 && dar_d == 5)
+    return TRUE;
+  if (dar_n == 21 && dar_d == 11)
+    return TRUE;
+
+  return FALSE;
+}
+
+
+/**
  * gst_video_alignment_reset:
  * @align: a #GstVideoAlignment
  *
@@ -211,5 +250,54 @@ gst_video_alignment_reset (GstVideoAlignment * align)
   align->padding_right = 0;
   for (i = 0; i < GST_VIDEO_MAX_PLANES; i++)
     align->stride_align[i] = 0;
+}
+
+/**
+ * gst_video_orientation_from_tag:
+ * @taglist: A #GstTagList
+ * @method: (out): The location where to return the orientation.
+ *
+ * Parses the "image-orientation" tag and transforms it into the
+ * #GstVideoOrientationMethod enum.
+ *
+ * Returns: TRUE if there was a valid "image-orientation" tag in the taglist.
+ *
+ * Since: 1.20
+ */
+gboolean
+gst_video_orientation_from_tag (GstTagList * taglist,
+    GstVideoOrientationMethod * method)
+{
+  gchar *orientation;
+  gboolean ret = TRUE;
+
+  g_return_val_if_fail (GST_IS_TAG_LIST (taglist), FALSE);
+  g_return_val_if_fail (method != NULL, FALSE);
+
+  if (!gst_tag_list_get_string (taglist, "image-orientation", &orientation))
+    return FALSE;
+
+  if (!g_strcmp0 ("rotate-0", orientation))
+    *method = GST_VIDEO_ORIENTATION_IDENTITY;
+  else if (!g_strcmp0 ("rotate-90", orientation))
+    *method = GST_VIDEO_ORIENTATION_90R;
+  else if (!g_strcmp0 ("rotate-180", orientation))
+    *method = GST_VIDEO_ORIENTATION_180;
+  else if (!g_strcmp0 ("rotate-270", orientation))
+    *method = GST_VIDEO_ORIENTATION_90L;
+  else if (!g_strcmp0 ("flip-rotate-0", orientation))
+    *method = GST_VIDEO_ORIENTATION_HORIZ;
+  else if (!g_strcmp0 ("flip-rotate-90", orientation))
+    *method = GST_VIDEO_ORIENTATION_UR_LL;
+  else if (!g_strcmp0 ("flip-rotate-180", orientation))
+    *method = GST_VIDEO_ORIENTATION_VERT;
+  else if (!g_strcmp0 ("flip-rotate-270", orientation))
+    *method = GST_VIDEO_ORIENTATION_UL_LR;
+  else
+    ret = FALSE;
+
+  g_free (orientation);
+
+  return ret;
 }
 #endif // GSTREAMER_LITE

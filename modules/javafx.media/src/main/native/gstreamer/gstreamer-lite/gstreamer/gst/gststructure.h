@@ -36,6 +36,33 @@ GST_EXPORT GType _gst_structure_type;
 
 typedef struct _GstStructure GstStructure;
 
+/**
+ * GST_SERIALIZE_FLAG_STRICT:
+ *
+ * Serialization fails if a value cannot be serialized instead of using
+ * placeholder "NULL" value (e.g. pointers, objects).
+ *
+ * Since: 1.24
+ */
+
+/**
+ * GstSerializeFlags:
+ * @GST_SERIALIZE_FLAG_NONE: No special flags specified.
+ * @GST_SERIALIZE_FLAG_BACKWARD_COMPAT: Serialize using the old format for
+ *                                      nested structures.
+ * @GST_SERIALIZE_FLAG_STRICT: Serialization fails if a value cannot be
+ *  serialized instead of using placeholder "NULL" value (e.g. pointers,
+ *  objects). (Since 1.24)
+ *
+ * Since: 1.20
+ */
+typedef enum
+{
+  GST_SERIALIZE_FLAG_NONE = 0,
+  GST_SERIALIZE_FLAG_BACKWARD_COMPAT = (1 << 0),
+  GST_SERIALIZE_FLAG_STRICT = (1 << 1),
+} GstSerializeFlags;
+
 #define GST_TYPE_STRUCTURE             (_gst_structure_type)
 #define GST_IS_STRUCTURE(object)       ((object) && (GST_STRUCTURE(object)->type == GST_TYPE_STRUCTURE))
 #define GST_STRUCTURE_CAST(object)     ((GstStructure *)(object))
@@ -332,8 +359,21 @@ GST_API
 gboolean              gst_structure_get_list             (GstStructure        * structure,
                                                           const gchar         * fieldname,
                                                           GValueArray        ** array);
+
 GST_API
-gchar *               gst_structure_to_string    (const GstStructure * structure) G_GNUC_MALLOC;
+gboolean              gst_structure_get_flags            (const GstStructure  * structure,
+                                                          const gchar         * fieldname,
+                                                          GType                 flags_type,
+                                                          guint               * value);
+
+GST_API
+gchar *               gst_structure_to_string            (const GstStructure * structure) G_GNUC_MALLOC;
+GST_DEPRECATED_FOR(gst_structure_serialize_full)
+gchar *               gst_structure_serialize            (const GstStructure * structure,
+                                                          GstSerializeFlags flags) G_GNUC_MALLOC;
+GST_API
+gchar *               gst_structure_serialize_full       (const GstStructure * structure,
+                                                          GstSerializeFlags flags) G_GNUC_MALLOC;
 
 GST_API
 GstStructure *        gst_structure_from_string  (const gchar * string,

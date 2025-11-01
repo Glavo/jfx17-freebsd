@@ -218,7 +218,7 @@ IntRect ScrollbarThemeJava::trackRect(Scrollbar& scrollbar, bool) {
     return getPartRect(scrollbar, TrackBGPart);
 }
 
-int ScrollbarThemeJava::scrollbarThickness(ScrollbarControlSize, ScrollbarExpansionState)
+int ScrollbarThemeJava::scrollbarThickness(ScrollbarWidth, ScrollbarExpansionState, OverlayScrollbarSizeRelevancy)
 {
     JNIEnv* env = WTF::GetJavaEnv();
 

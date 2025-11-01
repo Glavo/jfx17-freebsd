@@ -22,104 +22,56 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef DenormalDisabler_h
-#define DenormalDisabler_h
+#pragma once
 
-#include <wtf/MathExtras.h>
+#include <wtf/TZoneMallocInlines.h>
 
 namespace WebCore {
 
 // Deal with denormals. They can very seriously impact performance on x86.
 
 // Define HAVE_DENORMAL if we support flushing denormals to zero.
-#if OS(WINDOWS) && COMPILER(MSVC)
-#define HAVE_DENORMAL
-#endif
 
-#if defined(__GNUC__) && (defined(__i386__) || defined(__x86_64__))
-#define HAVE_DENORMAL
-#endif
 
-#ifdef HAVE_DENORMAL
 class DenormalDisabler final {
-    WTF_MAKE_FAST_ALLOCATED;
+    WTF_MAKE_TZONE_ALLOCATED_INLINE(DenormalDisabler);
 public:
-    DenormalDisabler()
-            : m_savedCSR(0)
-    {
-#if OS(WINDOWS) && COMPILER(MSVC)
+    DenormalDisabler();
         // Save the current state, and set mode to flush denormals.
         //
         // http://stackoverflow.com/questions/637175/possible-bug-in-controlfp-s-may-not-restore-control-word-correctly
-        _controlfp_s(&m_savedCSR, 0, 0);
-        unsigned int unused;
-        _controlfp_s(&unused, _DN_FLUSH, _MCW_DN);
-#else
-        m_savedCSR = getCSR();
-        setCSR(m_savedCSR | 0x8040);
-#endif
-    }
 
-    ~DenormalDisabler()
-    {
-#if OS(WINDOWS) && COMPILER(MSVC)
-        unsigned int unused;
-        _controlfp_s(&unused, m_savedCSR, _MCW_DN);
-#else
-        setCSR(m_savedCSR);
-#endif
-    }
+    ~DenormalDisabler();
 
     // This is a nop if we can flush denormals to zero in hardware.
     static inline float flushDenormalFloatToZero(float f)
     {
-#if OS(WINDOWS) && COMPILER(MSVC) && (!_M_IX86_FP)
+#if !HAVE(DENORMAL)
         // For systems using x87 instead of sse, there's no hardware support
         // to flush denormals automatically. Hence, we need to flush
         // denormals to zero manually.
-        return (fabs(f) < FLT_MIN) ? 0.0f : f;
+        return (std::abs(f) < FLT_MIN) ? 0.0f : f;
 #else
         return f;
 #endif
     }
+    static constexpr intptr_t kUndefinedStatusWord { -1 };
 private:
-#if defined(__GNUC__) && (defined(__i386__) || defined(__x86_64__))
-    inline int getCSR()
-    {
-        int result;
-        asm volatile("stmxcsr %0" : "=m" (result));
-        return result;
-    }
 
-    inline void setCSR(int a)
-    {
-        int temp = a;
-        asm volatile("ldmxcsr %0" : : "m" (temp));
-    }
 
-#endif
 
-    unsigned int m_savedCSR;
-};
 
-#else
+
+
+    const intptr_t m_savedCSR { kUndefinedStatusWord };
+
 // FIXME: add implementations for other architectures and compilers
-class DenormalDisabler final {
-    WTF_MAKE_FAST_ALLOCATED;
-public:
-    DenormalDisabler() { }
+    const bool m_disablingActivated { false };
 
     // Assume the worst case that other architectures and compilers
     // need to flush denormals to zero manually.
-    static inline float flushDenormalFloatToZero(float f)
-    {
-        return (fabs(f) < FLT_MIN) ? 0.0f : f;
-    }
 };
 
-#endif
 
 } // WebCore
 
-#undef HAVE_DENORMAL
-#endif // DenormalDisabler_h

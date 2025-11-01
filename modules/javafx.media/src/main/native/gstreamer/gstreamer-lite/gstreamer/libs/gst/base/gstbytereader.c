@@ -26,6 +26,7 @@
 #define GST_BYTE_READER_DISABLE_INLINES
 #include "gstbytereader.h"
 
+#include "gst/glib-compat-private.h"
 #include <string.h>
 
 /**
@@ -98,7 +99,7 @@
 GstByteReader *
 gst_byte_reader_new (const guint8 * data, guint size)
 {
-  GstByteReader *ret = g_slice_new0 (GstByteReader);
+  GstByteReader *ret = g_new0 (GstByteReader, 1);
 
   ret->data = data;
   ret->size = size;
@@ -118,7 +119,7 @@ gst_byte_reader_free (GstByteReader * reader)
 {
   g_return_if_fail (reader != NULL);
 
-  g_slice_free (GstByteReader, reader);
+  g_free (reader);
 }
 
 /**
@@ -1222,7 +1223,7 @@ gst_byte_reader_dup_string_utf##bits (GstByteReader * reader, type ** str) \
     *str = NULL; \
     return FALSE; \
   } \
-  *str = g_memdup (reader->data + reader->byte, size); \
+  *str = g_memdup2 (reader->data + reader->byte, size); \
   reader->byte += size; \
   return TRUE; \
 }

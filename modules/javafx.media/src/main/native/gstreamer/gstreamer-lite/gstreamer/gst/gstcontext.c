@@ -33,24 +33,25 @@
  *
  * Applications can set a context on a complete pipeline by using
  * gst_element_set_context(), which will then be propagated to all
- * child elements. Elements can handle these in #GstElementClass.set_context()
+ * child elements. Elements can handle these in #GstElementClass::set_context
  * and merge them with the context information they already have.
  *
  * When an element needs a context it will do the following actions in this
  * order until one step succeeds:
+ *
  * 1. Check if the element already has a context
- * 2. Query downstream with GST_QUERY_CONTEXT for the context
- * 3. Query upstream with GST_QUERY_CONTEXT for the context
- * 4. Post a GST_MESSAGE_NEED_CONTEXT message on the bus with the required
+ * 2. Query downstream with %GST_QUERY_CONTEXT for the context
+ * 3. Query upstream with %GST_QUERY_CONTEXT for the context
+ * 4. Post a %GST_MESSAGE_NEED_CONTEXT message on the bus with the required
  *    context types and afterwards check if a usable context was set now
- * 5. Create a context by itself and post a GST_MESSAGE_HAVE_CONTEXT message
+ * 5. Create a context by itself and post a %GST_MESSAGE_HAVE_CONTEXT message
  *    on the bus.
  *
- * Bins will catch GST_MESSAGE_NEED_CONTEXT messages and will set any previously
+ * Bins will catch %GST_MESSAGE_NEED_CONTEXT messages and will set any previously
  * known context on the element that asks for it if possible. Otherwise the
  * application should provide one if it can.
  *
- * #GstContext<!-- -->s can be persistent.
+ * #GstContext can be persistent.
  * A persistent #GstContext is kept in elements when they reach
  * %GST_STATE_NULL, non-persistent ones will be removed.
  * Also, a non-persistent context won't override a previous persistent
@@ -113,7 +114,7 @@ _gst_context_free (GstContext * context)
   memset (context, 0xff, sizeof (GstContext));
 #endif
 
-  g_slice_free1 (sizeof (GstContext), context);
+  g_free (context);
 }
 
 static void gst_context_init (GstContext * context);
@@ -127,7 +128,7 @@ _gst_context_copy (GstContext * context)
   GST_CAT_LOG (GST_CAT_CONTEXT, "copy context %p: %" GST_PTR_FORMAT, context,
       GST_CONTEXT_STRUCTURE (context));
 
-  copy = g_slice_new0 (GstContext);
+  copy = g_new0 (GstContext, 1);
 
   gst_context_init (copy);
 
@@ -156,7 +157,7 @@ gst_context_init (GstContext * context)
  * @context_type: Context type
  * @persistent: Persistent context
  *
- * Create a new context.
+ * Creates a new context.
  *
  * Returns: (transfer full): The new context.
  *
@@ -170,7 +171,7 @@ gst_context_new (const gchar * context_type, gboolean persistent)
 
   g_return_val_if_fail (context_type != NULL, NULL);
 
-  context = g_slice_new0 (GstContext);
+  context = g_new0 (GstContext, 1);
 
   GST_CAT_LOG (GST_CAT_CONTEXT, "creating new context %p", context);
 
@@ -189,7 +190,7 @@ gst_context_new (const gchar * context_type, gboolean persistent)
  * gst_context_get_context_type:
  * @context: The #GstContext.
  *
- * Get the type of @context.
+ * Gets the type of @context.
  *
  * Returns: The type of the context.
  *
@@ -228,7 +229,7 @@ gst_context_has_context_type (const GstContext * context,
  * gst_context_get_structure:
  * @context: The #GstContext.
  *
- * Access the structure of the context.
+ * Accesses the structure of the context.
  *
  * Returns: (transfer none): The structure of the context. The structure is
  * still owned by the context, which means that you should not modify it,
@@ -248,9 +249,9 @@ gst_context_get_structure (const GstContext * context)
  * gst_context_writable_structure:
  * @context: The #GstContext.
  *
- * Get a writable version of the structure.
+ * Gets a writable version of the structure.
  *
- * Returns: The structure of the context. The structure is still
+ * Returns: (transfer none): The structure of the context. The structure is still
  * owned by the context, which means that you should not free it and
  * that the pointer becomes invalid when you free the context.
  * This function checks if @context is writable.
@@ -270,7 +271,7 @@ gst_context_writable_structure (GstContext * context)
  * gst_context_is_persistent:
  * @context: The #GstContext.
  *
- * Check if @context is persistent.
+ * Checks if @context is persistent.
  *
  * Returns: %TRUE if the context is persistent.
  *
@@ -313,6 +314,25 @@ void
 gst_context_unref (GstContext * context)
 {
   gst_mini_object_unref (GST_MINI_OBJECT_CAST (context));
+}
+
+/**
+ * gst_clear_context: (skip)
+ * @context_ptr: a pointer to a #GstContext reference
+ *
+ * Clears a reference to a #GstContext.
+ *
+ * @context_ptr must not be `NULL`.
+ *
+ * If the reference is `NULL` then this function does nothing. Otherwise, the
+ * reference count of the context is decreased and the pointer is set to `NULL`.
+ *
+ * Since: 1.24
+ */
+void
+gst_clear_context (GstContext ** context_ptr)
+{
+  gst_clear_mini_object ((GstMiniObject **) context_ptr);
 }
 
 /**

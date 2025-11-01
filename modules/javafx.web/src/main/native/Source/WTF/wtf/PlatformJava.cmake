@@ -15,12 +15,19 @@ list(APPEND WTF_PUBLIC_HEADERS
     unicode/java/UnicodeJava.h
 )
 
+if (UNIX)
+    list(APPEND WTF_PUBLIC_HEADERS
+        unix/UnixFileDescriptor.h
+    )
+endif ()
+
 list(APPEND WTF_SOURCES
     java/FileSystemJava.cpp
     java/JavaEnv.cpp
     java/MainThreadJava.cpp
     java/StringJava.cpp
     java/TextBreakIteratorInternalICUJava.cpp
+    java/CPUTimeJava.cpp
 )
 
 list(APPEND WTF_LIBRARIES
@@ -49,28 +56,27 @@ if (APPLE)
         ${WTF_DERIVED_SOURCES_DIR}/mach_excServer.c
         ${WTF_DERIVED_SOURCES_DIR}/mach_excUser.c
     )
-
+    #if_platform_JAVA
     list(APPEND WTF_PUBLIC_HEADERS
         cf/TypeCastsCF.h
     )
-
+    #endif_platform_JAVA
     list(APPEND WTF_PRIVATE_INCLUDE_DIRECTORIES
         # Check whether we can use WTF/icu
         # "${WTF_DIR}/icu"
         ${WTF_DERIVED_SOURCES_DIR}
     )
-
     list(APPEND WTF_SOURCES
         BlockObjCExceptions.mm
         cf/LanguageCF.cpp
         cf/RunLoopCF.cpp
-        cocoa/CPUTimeCocoa.cpp
         cocoa/MachSendRight.cpp
         cocoa/MemoryFootprintCocoa.cpp
         cocoa/MemoryPressureHandlerCocoa.mm
         cocoa/WorkQueueCocoa.cpp
         text/cf/StringCF.cpp
         text/cf/StringImplCF.cpp
+	text/cocoa/ASCIILiteralCocoa.mm
         text/cocoa/StringImplCocoa.mm
     )
 
@@ -86,11 +92,10 @@ elseif (UNIX)
         generic/WorkQueueGeneric.cpp
         linux/CurrentProcessMemoryStatus.cpp
         linux/MemoryFootprintLinux.cpp
-        linux/MemoryPressureHandlerLinux.cpp
         generic/MemoryFootprintGeneric.cpp
-        unix/MemoryPressureHandlerUnix.cpp
-        unix/CPUTimeUnix.cpp
         unix/LanguageUnix.cpp
+        unix/MemoryPressureHandlerUnix.cpp
+        linux/RealTimeThreads.cpp
     )
     list(APPEND WTF_LIBRARIES rt)
 elseif (WIN32)
@@ -105,6 +110,8 @@ elseif (WIN32)
         win/OSAllocatorWin.cpp
         win/RunLoopWin.cpp
         win/ThreadingWin.cpp
+        win/Win32Handle.cpp
+        win/SignalsWin.cpp
     )
 
     list(APPEND WTF_PUBLIC_HEADERS

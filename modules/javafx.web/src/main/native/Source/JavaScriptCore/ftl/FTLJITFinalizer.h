@@ -28,44 +28,27 @@
 #if ENABLE(FTL_JIT)
 
 #include "DFGFinalizer.h"
-#include "FTLGeneratedFunction.h"
 #include "FTLJITCode.h"
 #include "LinkBuffer.h"
 #include "MacroAssembler.h"
+#include <wtf/TZoneMalloc.h>
 
 namespace JSC { namespace FTL {
 
-class OutOfLineCodeInfo {
-public:
-    OutOfLineCodeInfo(std::unique_ptr<LinkBuffer> linkBuffer, const char* codeDescription)
-        : m_linkBuffer(WTFMove(linkBuffer))
-        , m_codeDescription(codeDescription)
-    {
-    }
-
-    std::unique_ptr<LinkBuffer> m_linkBuffer;
-    const char* m_codeDescription;
-};
-
 class JITFinalizer final : public DFG::Finalizer {
+    WTF_MAKE_TZONE_ALLOCATED(JITFinalizer);
 public:
     JITFinalizer(DFG::Plan&);
     ~JITFinalizer() final;
 
     size_t codeSize() final;
     bool finalize() final;
-    bool finalizeFunction() final;
+    bool isFailed() final { return false; };
 
-    bool finalizeCommon();
+    RefPtr<JSC::JITCode> jitCode() final { return m_jitCode; }
 
-    std::unique_ptr<LinkBuffer> b3CodeLinkBuffer;
-
-    // Eventually, we can get rid of this with B3.
-    std::unique_ptr<LinkBuffer> entrypointLinkBuffer;
-
-    Vector<CCallHelpers::Jump> lazySlowPathGeneratorJumps;
-    GeneratedFunction function;
-    RefPtr<JITCode> jitCode;
+    RefPtr<FTL::JITCode> m_jitCode;
+    size_t m_codeSize { 0 };
 };
 
 } } // namespace JSC::FTL

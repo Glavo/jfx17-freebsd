@@ -36,6 +36,7 @@
 #include <gst/gstbuffer.h>
 #include <gst/gstbufferlist.h>
 #include <gst/gstbufferpool.h>
+#include <gst/gstbytearrayinterface.h>
 #include <gst/gstcaps.h>
 #include <gst/gstcapsfeatures.h>
 #include <gst/gstchildproxy.h>
@@ -101,28 +102,37 @@
 /* API compatibility stuff */
 #include <gst/gstcompat.h>
 
+#ifndef GSTREAMER_LITE
+#ifdef __APPLE__
+#  include <TargetConditionals.h>
+#  if TARGET_OS_MAC && !TARGET_OS_IPHONE
+#   include <gst/gstmacos.h>
+#  endif
+#endif
+#endif // GSTREAMER_LITE
+
 G_BEGIN_DECLS
 
 GST_API
-void    gst_init      (int *argc, char **argv[]);
+void            gst_init                        (int *argc, char **argv[]);
 
 GST_API
-gboolean  gst_init_check      (int *argc, char **argv[],
-             GError ** err);
+gboolean        gst_init_check                  (int *argc, char **argv[],
+                                                 GError ** error);
 GST_API
 gboolean        gst_is_initialized              (void);
 
 GST_API
-GOptionGroup *  gst_init_get_option_group (void);
+GOptionGroup *  gst_init_get_option_group       (void);
 
 GST_API
-void    gst_deinit      (void);
+void            gst_deinit                      (void);
 
 GST_API
-void    gst_version     (guint *major, guint *minor,
-             guint *micro, guint *nano);
+void            gst_version                     (guint *major, guint *minor,
+                                                 guint *micro, guint *nano);
 GST_API
-gchar *   gst_version_string    (void);
+gchar *         gst_version_string              (void);
 
 GST_API
 gboolean        gst_segtrap_is_enabled          (void);

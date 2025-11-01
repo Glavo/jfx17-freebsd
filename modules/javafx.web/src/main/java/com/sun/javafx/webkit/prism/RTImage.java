@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -57,6 +57,25 @@ final class RTImage extends PrismImage implements ResourceFactoryListener {
             PlatformLogger.getLogger(RTImage.class.getName());
 
     RTImage(int w, int h, float pixelScale) {
+        if (Float.isNaN(pixelScale) || pixelScale <= 0 ||
+                Math.ceil((double)pixelScale) >= (double)Integer.MAX_VALUE) {
+
+            throw new IllegalArgumentException("pixelScale out of range");
+        }
+
+        if (w <= 0 || h <= 0) {
+            throw new IllegalArgumentException("image size must be positive");
+        }
+
+        final int ps = (int) Math.ceil(pixelScale);
+
+        final int scale = Math.max(ps, 4);
+        final int maxSize = Integer.MAX_VALUE / scale;
+
+        if (maxSize / w <= h) {
+            throw new IllegalArgumentException("image size out of range");
+        }
+
         width = w;
         height = h;
         this.pixelScale = pixelScale;
@@ -96,6 +115,10 @@ final class RTImage extends PrismImage implements ResourceFactoryListener {
                     (int) Math.ceil(width * pixelScale),
                     (int) Math.ceil(height * pixelScale),
                     Texture.WrapMode.CLAMP_NOT_NEEDED);
+            if (txt == null) {
+                log.fine("RTImage::getTexture : return null because rt texture not allocated");
+                return null;
+            }
             txt.contentsUseful();
             txt.makePermanent();
             if (registeredWithFactory == null || registeredWithFactory.get() != f) {

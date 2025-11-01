@@ -3,6 +3,8 @@
 /* GLIB - Library of useful routines for C programming
  * Copyright (C) 2008 Red Hat, Inc.
  *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
@@ -18,16 +20,26 @@
  */
 
 #include "config.h"
+#include "glibconfig.h"
 
 #include <string.h>
+
+#ifdef G_OS_UNIX
+#include <unistd.h>
+#endif
 
 #include "ghostutils.h"
 
 #include "garray.h"
 #include "gmem.h"
+#include "gmessages.h"
 #include "gstring.h"
 #include "gstrfuncs.h"
 #include "glibintl.h"
+
+#ifdef G_PLATFORM_WIN32
+#include <windows.h>
+#endif
 
 
 /**
@@ -46,6 +58,24 @@
  * ASCII-Compatible Encoding of any given Unicode name, which can be
  * used with non-IDN-aware applications and protocols. (For example,
  * ".org" maps to "xn--4wa8awb4637h.org".)
+ **/
+
+/**
+ * SECTION:ghostutils
+ * @short_description: Internet hostname utilities
+ *
+ * Functions for manipulating internet hostnames; in particular, for
+ * converting between Unicode and ASCII-encoded forms of
+ * Internationalized Domain Names (IDNs).
+ *
+ * The
+ * [Internationalized Domain Names for Applications (IDNA)](http://www.ietf.org/rfc/rfc3490.txt)
+ * standards allow for the use
+ * of Unicode domain names in applications, while providing
+ * backward-compatibility with the old ASCII-only DNS, by defining an
+ * ASCII-Compatible Encoding of any given Unicode name, which can be
+ * used with non-IDN-aware applications and protocols. (For example,
+ * "Παν語.org" maps to "xn--4wa8awb4637h.org".)
  **/
 
 #define IDNA_ACE_PREFIX     "xn--"
@@ -119,14 +149,17 @@ punycode_encode (const gchar *input_utf8,
 {
   guint delta, handled_chars, num_basic_chars, bias, j, q, k, t, digit;
   gunichar n, m, *input;
-  glong input_length;
+  glong written_chars;
+  gsize input_length;
   gboolean success = FALSE;
 
   /* Convert from UTF-8 to Unicode code points */
   input = g_utf8_to_ucs4 (input_utf8, input_utf8_length, NULL,
-        &input_length, NULL);
+                          &written_chars, NULL);
   if (!input)
     return FALSE;
+
+  input_length = (gsize) (written_chars > 0 ? written_chars : 0);
 
   /* Copy basic chars */
   for (j = num_basic_chars = 0; j < input_length; j++)
@@ -405,6 +438,45 @@ idna_end_of_label (const gchar *str)
   return str;
 }
 
+static gsize
+get_hostname_max_length_bytes (void)
+{
+#if defined(G_OS_WIN32)
+  wchar_t tmp[MAX_COMPUTERNAME_LENGTH];
+  return sizeof (tmp) / sizeof (tmp[0]);
+#elif defined(_SC_HOST_NAME_MAX)
+  glong max = sysconf (_SC_HOST_NAME_MAX);
+  if (max > 0)
+    return (gsize) max;
+
+#ifdef HOST_NAME_MAX
+  return HOST_NAME_MAX;
+#else
+  return _POSIX_HOST_NAME_MAX;
+#endif /* HOST_NAME_MAX */
+#else
+  /* Fallback to some reasonable value
+   * See https://stackoverflow.com/questions/8724954/what-is-the-maximum-number-of-characters-for-a-host-name-in-unix/28918017#28918017 */
+  return 255;
+#endif
+}
+
+/* Returns %TRUE if `strlen (str) > comparison_length`, but without actually
+ * running `strlen(str)`, as that would take a very long time for long
+ * (untrusted) input strings. */
+static gboolean
+strlen_greater_than (const gchar *str,
+                     gsize        comparison_length)
+{
+  gsize i;
+
+  for (i = 0; str[i] != '\0'; i++)
+    if (i > comparison_length)
+      return TRUE;
+
+  return FALSE;
+}
+
 /**
  * g_hostname_to_ascii:
  * @hostname: a valid UTF-8 or ASCII hostname
@@ -413,8 +485,8 @@ idna_end_of_label (const gchar *str)
  * string containing no uppercase letters and not ending with a
  * trailing dot.
  *
- * Returns: an ASCII hostname, which must be freed, or %NULL if
- * @hostname is in some way invalid.
+ * Returns: (nullable) (transfer full): an ASCII hostname, which must be freed,
+ *    or %NULL if @hostname is in some way invalid.
  *
  * Since: 2.22
  **/
@@ -425,6 +497,32 @@ g_hostname_to_ascii (const gchar *hostname)
   GString *out;
   gssize llen, oldlen;
   gboolean unicode;
+  gsize hostname_max_length_bytes = get_hostname_max_length_bytes ();
+
+  /* Do an initial check on the hostname length, as overlong hostnames take a
+   * long time in the IDN cleanup algorithm in nameprep(). The ultimate
+   * restriction is that the IDN-decoded (i.e. pure ASCII) hostname cannot be
+   * longer than 255 bytes. That’s the least restrictive limit on hostname
+   * length of all the ways hostnames can be interpreted. Typically, the
+   * hostname will be an FQDN, which is limited to 253 bytes long. POSIX
+   * hostnames are limited to `get_hostname_max_length_bytes()` (typically 255
+   * bytes).
+   *
+   * See https://stackoverflow.com/a/28918017/2931197
+   *
+   * It’s possible for a hostname to be %-encoded, in which case its decoded
+   * length will be as much as 3× shorter.
+   *
+   * It’s also possible for a hostname to use overlong UTF-8 encodings, in which
+   * case its decoded length will be as much as 4× shorter.
+   *
+   * Note: This check is not intended as an absolute guarantee that a hostname
+   * is the right length and will be accepted by other systems. It’s intended to
+   * stop wildly-invalid hostnames from taking forever in nameprep().
+   */
+  if (hostname_max_length_bytes <= G_MAXSIZE / 4 &&
+      strlen_greater_than (hostname, 4 * MAX (255, hostname_max_length_bytes)))
+    return NULL;
 
   label = name = nameprep (hostname, -1, &unicode);
   if (!name || !unicode)
@@ -594,8 +692,8 @@ punycode_decode (const gchar *input,
  * Of course if @hostname is not an internationalized hostname, then
  * the canonical presentation form will be entirely ASCII.
  *
- * Returns: a UTF-8 hostname, which must be freed, or %NULL if
- * @hostname is in some way invalid.
+ * Returns: (nullable) (transfer full): a UTF-8 hostname, which must be freed,
+ *    or %NULL if @hostname is in some way invalid.
  *
  * Since: 2.22
  **/
@@ -604,6 +702,14 @@ g_hostname_to_unicode (const gchar *hostname)
 {
   GString *out;
   gssize llen;
+  gsize hostname_max_length_bytes = get_hostname_max_length_bytes ();
+
+  g_return_val_if_fail (hostname != NULL, NULL);
+
+  /* See the comment at the top of g_hostname_to_ascii(). */
+  if (hostname_max_length_bytes <= G_MAXSIZE / 4 &&
+      strlen_greater_than (hostname, 4 * MAX (255, hostname_max_length_bytes)))
+    return NULL;
 
   out = g_string_new (NULL);
 

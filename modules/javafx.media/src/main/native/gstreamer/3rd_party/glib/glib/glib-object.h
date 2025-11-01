@@ -1,6 +1,8 @@
 /* GObject - GLib Type, Object, Parameter and Signal Library
  * Copyright (C) 1998, 1999, 2000 Tim Janik and Red Hat, Inc.
  *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
@@ -20,6 +22,9 @@
 #define __GLIB_GOBJECT_H_INSIDE__
 
 #include <gobject/gbinding.h>
+#ifndef GSTREAMER_LITE
+#include <gobject/gbindinggroup.h>
+#endif // GSTREAMER_LITE
 #include <gobject/gboxed.h>
 #include <gobject/genums.h>
 #include <gobject/glib-enumtypes.h>
@@ -27,6 +32,9 @@
 #include <gobject/gparam.h>
 #include <gobject/gparamspecs.h>
 #include <gobject/gsignal.h>
+#ifndef GSTREAMER_LITE
+#include <gobject/gsignalgroup.h>
+#endif // GSTREAMER_LITE
 #include <gobject/gsourceclosure.h>
 #include <gobject/gtype.h>
 #include <gobject/gtypemodule.h>
@@ -34,9 +42,6 @@
 #include <gobject/gvaluearray.h>
 #include <gobject/gvalue.h>
 #include <gobject/gvaluetypes.h>
-#ifndef GSTREAMER_LITE
-#include <gobject/glib-enumtypes.h>
-#endif // GSTREAMER_LITE
 
 #include <gobject/gobject-autocleanups.h>
 

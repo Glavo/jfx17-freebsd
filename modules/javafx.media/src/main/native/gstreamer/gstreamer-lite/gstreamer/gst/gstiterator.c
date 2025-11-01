@@ -44,10 +44,10 @@
  *   GValue item = G_VALUE_INIT;
  *   done = FALSE;
  *   while (!done) {
- *     switch (gst_iterator_next (it, &amp;item)) {
+ *     switch (gst_iterator_next (it, &item)) {
  *       case GST_ITERATOR_OK:
  *         ...get/use/change item here...
- *         g_value_reset (&amp;item);
+ *         g_value_reset (&item);
  *         break;
  *       case GST_ITERATOR_RESYNC:
  *         ...rollback changes to items...
@@ -62,12 +62,13 @@
  *         break;
  *     }
  *   }
- *   g_value_unset (&amp;item);
+ *   g_value_unset (&item);
  *   gst_iterator_free (it);
  * ]|
  */
 
 #include "gst_private.h"
+#include "glib-compat-private.h"
 #include <gst/gstiterator.h>
 
 /**
@@ -83,7 +84,7 @@ gst_iterator_copy (const GstIterator * it)
 {
   GstIterator *copy;
 
-  copy = g_slice_copy (it->size, it);
+  copy = g_memdup2 (it, it->size);
   if (it->copy)
     it->copy (it, copy);
 
@@ -159,7 +160,7 @@ gst_iterator_new (guint size,
   g_return_val_if_fail (resync != NULL, NULL);
   g_return_val_if_fail (free != NULL, NULL);
 
-  result = g_slice_alloc0 (size);
+  result = g_malloc0 (size);
   gst_iterator_init (result, size, type, lock, master_cookie, copy, next, item,
       resync, free);
 
@@ -212,7 +213,7 @@ static void
 gst_list_iterator_free (GstListIterator * it)
 {
   if (it->owner)
-    gst_object_unref (it->owner);
+    g_object_unref (it->owner);
 }
 
 /**
@@ -422,7 +423,7 @@ gst_iterator_free (GstIterator * it)
 
   it->free (it);
 
-  g_slice_free1 (it->size, it);
+  g_free (it);
 }
 
 /**
@@ -629,12 +630,7 @@ gst_iterator_fold (GstIterator * it, GstIteratorFoldFunction func,
 
 fold_done:
 
-#if GLIB_CHECK_VERSION (2, 48, 0)
   g_value_unset (&item);
-#else
-  if (item.g_type != 0)
-    g_value_unset (&item);
-#endif
 
   return result;
 }

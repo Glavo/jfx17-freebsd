@@ -1,6 +1,8 @@
 /* GObject - GLib Type, Object, Parameter and Signal Library
  * Copyright (C) 1997-1999, 2000-2001 Tim Janik and Red Hat, Inc.
  *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
@@ -33,6 +35,7 @@ G_BEGIN_DECLS
  * @type: A #GType value.
  *
  * Checks whether the passed in type ID can be used for g_value_init().
+ *
  * That is, this macro checks whether this type provides an implementation
  * of the #GTypeValueTable functions required for a type to create a #GValue of.
  *
@@ -97,10 +100,12 @@ typedef void (*GValueTransform) (const GValue *src_value,
  * GValue:
  *
  * An opaque structure used to hold different types of values.
+ *
  * The data within the structure has protected scope: it is accessible only
  * to functions within a #GTypeValueTable structure, or implementations of
  * the g_value_*() API. That is, code portions which implement new fundamental
  * types.
+ *
  * #GValue users cannot make any assumptions about how data is stored
  * within the 2 element @data union, and the @g_type member should
  * only be accessed through the G_VALUE_TYPE() macro.
@@ -126,42 +131,42 @@ struct _GValue
 
 
 /* --- prototypes --- */
-GLIB_AVAILABLE_IN_ALL
+GOBJECT_AVAILABLE_IN_ALL
 GValue*         g_value_init      (GValue       *value,
            GType         g_type);
-GLIB_AVAILABLE_IN_ALL
+GOBJECT_AVAILABLE_IN_ALL
 void            g_value_copy      (const GValue *src_value,
            GValue       *dest_value);
-GLIB_AVAILABLE_IN_ALL
+GOBJECT_AVAILABLE_IN_ALL
 GValue*         g_value_reset     (GValue       *value);
-GLIB_AVAILABLE_IN_ALL
+GOBJECT_AVAILABLE_IN_ALL
 void            g_value_unset     (GValue       *value);
-GLIB_AVAILABLE_IN_ALL
+GOBJECT_AVAILABLE_IN_ALL
 void    g_value_set_instance  (GValue       *value,
            gpointer      instance);
-GLIB_AVAILABLE_IN_2_42
+GOBJECT_AVAILABLE_IN_2_42
 void            g_value_init_from_instance   (GValue       *value,
                                               gpointer      instance);
 
 
 /* --- private --- */
-GLIB_AVAILABLE_IN_ALL
+GOBJECT_AVAILABLE_IN_ALL
 gboolean  g_value_fits_pointer  (const GValue *value);
-GLIB_AVAILABLE_IN_ALL
+GOBJECT_AVAILABLE_IN_ALL
 gpointer  g_value_peek_pointer  (const GValue *value);
 
 
 /* --- implementation details --- */
-GLIB_AVAILABLE_IN_ALL
+GOBJECT_AVAILABLE_IN_ALL
 gboolean g_value_type_compatible  (GType     src_type,
            GType     dest_type);
-GLIB_AVAILABLE_IN_ALL
+GOBJECT_AVAILABLE_IN_ALL
 gboolean g_value_type_transformable (GType           src_type,
            GType           dest_type);
-GLIB_AVAILABLE_IN_ALL
+GOBJECT_AVAILABLE_IN_ALL
 gboolean g_value_transform    (const GValue   *src_value,
            GValue         *dest_value);
-GLIB_AVAILABLE_IN_ALL
+GOBJECT_AVAILABLE_IN_ALL
 void  g_value_register_transform_func (GType     src_type,
            GType     dest_type,
            GValueTransform transform_func);
@@ -184,7 +189,7 @@ void  g_value_register_transform_func (GType     src_type,
  *
  * Since: 2.66
  */
-#define G_VALUE_INTERNED_STRING (1 << 28) GLIB_AVAILABLE_MACRO_IN_2_66
+#define G_VALUE_INTERNED_STRING (1 << 28) GOBJECT_AVAILABLE_MACRO_IN_2_66
 
 /**
  * G_VALUE_INIT:
@@ -193,7 +198,7 @@ void  g_value_register_transform_func (GType     src_type,
  * be used as initializer instead of an explicit `{ 0 }` when declaring
  * a variable, but it cannot be assigned to a variable.
  *
- * |[
+ * |[<!-- language="C" -->
  *   GValue value = G_VALUE_INIT;
  * ]|
  *

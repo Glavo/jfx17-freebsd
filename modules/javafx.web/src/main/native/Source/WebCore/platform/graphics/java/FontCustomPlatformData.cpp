@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,14 +27,17 @@
 
 #include "FontCustomPlatformData.h"
 
+#include "FontCreationContext.h"
 #include "SharedBuffer.h"
 #include "FontDescription.h"
 #include "FontPlatformData.h"
 
 namespace WebCore {
 
-FontCustomPlatformData::FontCustomPlatformData(const JLObject& data)
-    : m_data(data)
+FontCustomPlatformData::FontCustomPlatformData(const JLObject& data, FontPlatformData::CreationData&& cdata)
+    :creationData(cdata)
+    ,m_data(data)
+    ,m_renderingResourceIdentifier(RenderingResourceIdentifier::generate())
 {
 }
 
@@ -42,8 +45,7 @@ FontCustomPlatformData::~FontCustomPlatformData()
 {
 }
 
-FontPlatformData FontCustomPlatformData::fontPlatformData(
-        const FontDescription& fontDescription, bool bold, bool italic, const FontFeatureSettings&, FontSelectionSpecifiedCapabilities)
+FontPlatformData FontCustomPlatformData::fontPlatformData(const FontDescription& fontDescription, bool bold, bool italic, const FontCreationContext&)
 {
     JNIEnv* env = WTF::GetJavaEnv();
 
@@ -65,7 +67,7 @@ FontPlatformData FontCustomPlatformData::fontPlatformData(
     return FontPlatformData(RQRef::create(font), size);
 }
 
-std::unique_ptr<FontCustomPlatformData> createFontCustomPlatformData(SharedBuffer& buffer, const String& /* index */)
+RefPtr<FontCustomPlatformData> createFontCustomPlatformData(SharedBuffer& buffer, const String& itemInCollection)
 {
     JNIEnv* env = WTF::GetJavaEnv();
 
@@ -97,15 +99,31 @@ std::unique_ptr<FontCustomPlatformData> createFontCustomPlatformData(SharedBuffe
             mid2,
             (jobject) sharedBuffer));
     WTF::CheckAndClearException(env);
-
-    return data ? std::make_unique<FontCustomPlatformData>(data) : nullptr;
+    FontPlatformData::CreationData creationData = { buffer, WTF::String::fromUTF8("") };
+    return data ? adoptRef(new FontCustomPlatformData(data, WTFMove(creationData))) : nullptr;
 }
 
 bool FontCustomPlatformData::supportsFormat(const String& format)
 {
-    return equalLettersIgnoringASCIICase(format, "truetype")
-            || equalLettersIgnoringASCIICase(format, "opentype")
-            || equalLettersIgnoringASCIICase(format, "woff");
+    return equalLettersIgnoringASCIICase(format, "truetype"_s)
+            || equalLettersIgnoringASCIICase(format, "opentype"_s)
+            || equalLettersIgnoringASCIICase(format, "woff"_s);
+}
+
+bool FontCustomPlatformData::supportsTechnology(const FontTechnology&)
+{
+    // FIXME: define supported technologies for this platform (webkit.org/b/256310).
+    return true;
+}
+
+RefPtr<FontCustomPlatformData> FontCustomPlatformData::create(SharedBuffer& buffer, const String& itemInCollection)
+{
+     return createFontCustomPlatformData(buffer,itemInCollection);
+}
+
+RefPtr<FontCustomPlatformData> FontCustomPlatformData::createMemorySafe(SharedBuffer&, const String&)
+{
+    return nullptr;
 }
 
 }

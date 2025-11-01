@@ -25,6 +25,8 @@
 #define GST_BYTE_WRITER_DISABLE_INLINES
 #include "gstbytewriter.h"
 
+#include "gst/glib-compat-private.h"
+
 /**
  * SECTION:gstbytewriter
  * @title: GstByteWriter
@@ -76,7 +78,7 @@
 GstByteWriter *
 gst_byte_writer_new (void)
 {
-  GstByteWriter *ret = g_slice_new0 (GstByteWriter);
+  GstByteWriter *ret = g_new0 (GstByteWriter, 1);
 
   ret->owned = TRUE;
   return ret;
@@ -236,7 +238,7 @@ gst_byte_writer_reset_and_get_data (GstByteWriter * writer)
 
   data = (guint8 *) writer->parent.data;
   if (!writer->owned)
-    data = g_memdup (data, writer->parent.size);
+    data = g_memdup2 (data, writer->parent.size);
   writer->parent.data = NULL;
   gst_byte_writer_reset (writer);
 
@@ -287,7 +289,7 @@ gst_byte_writer_free (GstByteWriter * writer)
   g_return_if_fail (writer != NULL);
 
   gst_byte_writer_reset (writer);
-  g_slice_free (GstByteWriter, writer);
+  g_free (writer);
 }
 
 /**
@@ -309,7 +311,7 @@ gst_byte_writer_free_and_get_data (GstByteWriter * writer)
   g_return_val_if_fail (writer != NULL, NULL);
 
   data = gst_byte_writer_reset_and_get_data (writer);
-  g_slice_free (GstByteWriter, writer);
+  g_free (writer);
 
   return data;
 }
@@ -334,7 +336,7 @@ gst_byte_writer_free_and_get_buffer (GstByteWriter * writer)
   g_return_val_if_fail (writer != NULL, NULL);
 
   buffer = gst_byte_writer_reset_and_get_buffer (writer);
-  g_slice_free (GstByteWriter, writer);
+  g_free (writer);
 
   return buffer;
 }

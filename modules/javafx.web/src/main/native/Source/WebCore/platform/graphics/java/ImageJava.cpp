@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -51,8 +51,8 @@ void Image::drawImage(GraphicsContext& gc, const FloatRect &dstRect, const Float
         return;
     }
 
-    NativeImagePtr currFrame = nativeImageForCurrentFrame();
-    if (!currFrame) {
+    auto nativeImage = currentNativeImage();
+    if (!nativeImage) {
         return;
     }
 
@@ -61,7 +61,7 @@ void Image::drawImage(GraphicsContext& gc, const FloatRect &dstRect, const Float
 
     gc.platformContext()->rq().freeSpace(72)
     << (jint)com_sun_webkit_graphics_GraphicsDecoder_DRAWIMAGE
-    << currFrame
+    << nativeImage->platformImage()->getImage()
     << dstRect.x() << dstRect.y()
     << dstRect.width() << dstRect.height()
     << srcRect.x() << srcRect.y()
@@ -73,11 +73,14 @@ void Image::drawImage(GraphicsContext& gc, const FloatRect &dstRect, const Float
         imageObserver()->didDraw(*this);
 }
 
-Ref<Image> Image::loadPlatformResource(const char *name)
+Ref<Image> ImageAdapter::loadPlatformResource(const char *name)
 {
     return BitmapImage::createFromName(name);
 }
 
+void ImageAdapter::invalidate()
+{
+}
 #if !USE(IMAGEIO)
 NativeImagePtr ImageFrame::asNewNativeImage() const
 {
@@ -91,6 +94,9 @@ NativeImagePtr ImageFrame::asNewNativeImage() const
             m_bytes,
             width() * height() * sizeof(PixelData)));
     ASSERT(data);
+    if (!data) {
+        return nullptr;
+    }
 
     JLObject frame(env->CallObjectMethod(
         PL_GetGraphicsManager(env),
@@ -99,7 +105,9 @@ NativeImagePtr ImageFrame::asNewNativeImage() const
         height(),
         (jobject)data));
     ASSERT(frame);
-    WTF::CheckAndClearException(env);
+    if (WTF::CheckAndClearException(env) || !frame) {
+        return nullptr;
+    }
 
     return RQRef::create(frame);
 }

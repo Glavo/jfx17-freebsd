@@ -28,6 +28,7 @@
 
 #include <WebCore/HTMLNames.h>
 #include <WebCore/HTMLQuoteElement.h>
+#include <WebCore/ElementInlines.h>
 #include <WebCore/JSExecState.h>
 
 #include <wtf/RefPtr.h>
@@ -53,7 +54,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLQuoteElementImpl_getCiteIm
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLQuoteElementImpl_setCiteImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::citeAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::citeAttr, AtomString{String(env, value)});
 }
 
 }

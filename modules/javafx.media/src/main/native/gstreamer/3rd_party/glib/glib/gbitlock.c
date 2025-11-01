@@ -2,6 +2,8 @@
  * Copyright (C) 2008 Ryan Lortie
  * Copyright (C) 2010 Codethink Limited
  *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
@@ -22,6 +24,7 @@
 
 #include "gbitlock.h"
 
+#include <glib/gmacros.h>
 #include <glib/gmessages.h>
 #include <glib/gatomic.h>
 #include <glib/gslist.h>
@@ -32,6 +35,7 @@
 
 #ifdef G_BIT_LOCK_FORCE_FUTEX_EMULATION
 #undef HAVE_FUTEX
+#undef HAVE_FUTEX_TIME64
 #endif
 
 #ifndef HAVE_FUTEX
@@ -39,7 +43,7 @@ static GMutex g_futex_mutex;
 static GSList *g_futex_address_list = NULL;
 #endif
 
-#ifdef HAVE_FUTEX
+#if defined(HAVE_FUTEX) || defined(HAVE_FUTEX_TIME64)
 /*
  * We have headers for futex(2) on the build machine.  This does not
  * imply that every system that ever runs the resulting glib will have
@@ -48,14 +52,6 @@ static GSList *g_futex_address_list = NULL;
  *
  * If anyone actually gets bit by this, please file a bug. :)
  */
-#include <linux/futex.h>
-#include <sys/syscall.h>
-#include <unistd.h>
-
-#ifndef FUTEX_WAIT_PRIVATE
-#define FUTEX_WAIT_PRIVATE FUTEX_WAIT
-#define FUTEX_WAKE_PRIVATE FUTEX_WAKE
-#endif
 
 /* < private >
  * g_futex_wait:
@@ -75,10 +71,10 @@ static GSList *g_futex_address_list = NULL;
  * separate process.
  */
 static void
-g_futex_wait (const volatile gint *address,
-              gint                 value)
+g_futex_wait (const gint *address,
+              gint        value)
 {
-  syscall (__NR_futex, address, (gsize) FUTEX_WAIT_PRIVATE, (gsize) value, NULL);
+  g_futex_simple (address, (gsize) FUTEX_WAIT_PRIVATE, (gsize) value, NULL);
 }
 
 /* < private >
@@ -93,9 +89,9 @@ g_futex_wait (const volatile gint *address,
  * thread being woken up.
  */
 static void
-g_futex_wake (const volatile gint *address)
+g_futex_wake (const gint *address)
 {
-  syscall (__NR_futex, address, (gsize) FUTEX_WAKE_PRIVATE, (gsize) 1, NULL);
+  g_futex_simple (address, (gsize) FUTEX_WAKE_PRIVATE, (gsize) 1, NULL);
 }
 
 #else
@@ -103,13 +99,13 @@ g_futex_wake (const volatile gint *address)
 /* emulate futex(2) */
 typedef struct
 {
-  const volatile gint *address;
-  gint                 ref_count;
-  GCond                wait_queue;
+  const gint *address;
+  gint ref_count;
+  GCond wait_queue;
 } WaitAddress;
 
 static WaitAddress *
-g_futex_find_address (const volatile gint *address)
+g_futex_find_address (const gint *address)
 {
   GSList *node;
 
@@ -125,8 +121,8 @@ g_futex_find_address (const volatile gint *address)
 }
 
 static void
-g_futex_wait (const volatile gint *address,
-              gint                 value)
+g_futex_wait (const gint *address,
+              gint        value)
 {
   g_mutex_lock (&g_futex_mutex);
   if G_LIKELY (g_atomic_int_get (address) == value)
@@ -164,7 +160,7 @@ g_futex_wait (const volatile gint *address,
 }
 
 static void
-g_futex_wake (const volatile gint *address)
+g_futex_wake (const gint *address)
 {
   WaitAddress *waiter;
 
@@ -182,10 +178,16 @@ g_futex_wake (const volatile gint *address)
 #endif
 
 #define CONTENTION_CLASSES 11
-static volatile gint g_bit_lock_contended[CONTENTION_CLASSES];
+static gint g_bit_lock_contended[CONTENTION_CLASSES];  /* (atomic) */
+
+G_ALWAYS_INLINE static inline guint
+bit_lock_contended_class (gpointer address)
+{
+  return ((gsize) address) % G_N_ELEMENTS (g_bit_lock_contended);
+}
 
 #if (defined (i386) || defined (__amd64__))
-  #if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 5)
+  #if G_GNUC_CHECK_VERSION(4, 5)
     #define USE_ASM_GOTO 1
   #endif
 #endif
@@ -207,7 +209,8 @@ static volatile gint g_bit_lock_contended[CONTENTION_CLASSES];
  *
  * This function accesses @address atomically.  All other accesses to
  * @address must be atomic in order for this function to work
- * reliably.
+ * reliably. While @address has a `volatile` qualifier, this is a historical
+ * artifact and the argument passed to it should not be `volatile`.
  *
  * Since: 2.24
  **/
@@ -215,6 +218,8 @@ void
 g_bit_lock (volatile gint *address,
             gint           lock_bit)
 {
+  gint *address_nonvolatile = (gint *) address;
+
 #ifdef USE_ASM_GOTO
  retry:
   __asm__ volatile goto ("lock bts %1, (%0)\n"
@@ -230,13 +235,13 @@ g_bit_lock (volatile gint *address,
     guint mask = 1u << lock_bit;
     guint v;
 
-    v = (guint) g_atomic_int_get (address);
+    v = (guint) g_atomic_int_get (address_nonvolatile);
     if (v & mask)
       {
-        guint class = ((gsize) address) % G_N_ELEMENTS (g_bit_lock_contended);
+        guint class = bit_lock_contended_class (address_nonvolatile);
 
         g_atomic_int_add (&g_bit_lock_contended[class], +1);
-        g_futex_wait (address, v);
+        g_futex_wait (address_nonvolatile, v);
         g_atomic_int_add (&g_bit_lock_contended[class], -1);
       }
   }
@@ -246,14 +251,14 @@ g_bit_lock (volatile gint *address,
   guint v;
 
  retry:
-  v = g_atomic_int_or (address, mask);
+  v = g_atomic_int_or (address_nonvolatile, mask);
   if (v & mask)
     /* already locked */
     {
-      guint class = ((gsize) address) % G_N_ELEMENTS (g_bit_lock_contended);
+      guint class = bit_lock_contended_class (address_nonvolatile);
 
       g_atomic_int_add (&g_bit_lock_contended[class], +1);
-      g_futex_wait (address, v);
+      g_futex_wait (address_nonvolatile, v);
       g_atomic_int_add (&g_bit_lock_contended[class], -1);
 
       goto retry;
@@ -277,7 +282,8 @@ g_bit_lock (volatile gint *address,
  *
  * This function accesses @address atomically.  All other accesses to
  * @address must be atomic in order for this function to work
- * reliably.
+ * reliably. While @address has a `volatile` qualifier, this is a historical
+ * artifact and the argument passed to it should not be `volatile`.
  *
  * Returns: %TRUE if the lock was acquired
  *
@@ -299,10 +305,11 @@ g_bit_trylock (volatile gint *address,
 
   return result;
 #else
+  gint *address_nonvolatile = (gint *) address;
   guint mask = 1u << lock_bit;
   guint v;
 
-  v = g_atomic_int_or (address, mask);
+  v = g_atomic_int_or (address_nonvolatile, mask);
 
   return ~v & mask;
 #endif
@@ -319,7 +326,8 @@ g_bit_trylock (volatile gint *address,
  *
  * This function accesses @address atomically.  All other accesses to
  * @address must be atomic in order for this function to work
- * reliably.
+ * reliably. While @address has a `volatile` qualifier, this is a historical
+ * artifact and the argument passed to it should not be `volatile`.
  *
  * Since: 2.24
  **/
@@ -327,22 +335,28 @@ void
 g_bit_unlock (volatile gint *address,
               gint           lock_bit)
 {
+  gint *address_nonvolatile = (gint *) address;
+
 #ifdef USE_ASM_GOTO
-  asm volatile ("lock btr %1, (%0)"
-                : /* no output */
-                : "r" (address), "r" (lock_bit)
-                : "cc", "memory");
+  __asm__ volatile ("lock btr %1, (%0)"
+                    : /* no output */
+                    : "r" (address), "r" (lock_bit)
+                    : "cc", "memory");
 #else
   guint mask = 1u << lock_bit;
 
-  g_atomic_int_and (address, ~mask);
+  g_atomic_int_and (address_nonvolatile, ~mask);
 #endif
 
+  /* Warning: unlocking may allow another thread to proceed and destroy the
+   * memory that @address points to. We thus must not dereference it anymore.
+   */
+
   {
-    guint class = ((gsize) address) % G_N_ELEMENTS (g_bit_lock_contended);
+    guint class = bit_lock_contended_class (address_nonvolatile);
 
     if (g_atomic_int_get (&g_bit_lock_contended[class]))
-      g_futex_wake (address);
+      g_futex_wake (address_nonvolatile);
   }
 }
 
@@ -371,10 +385,10 @@ g_bit_unlock (volatile gint *address,
  *
  *   g_futex_wake (g_futex_int_address (int_address));
  */
-static const volatile gint *
-g_futex_int_address (const volatile void *address)
+static const gint *
+g_futex_int_address (const void *address)
 {
-  const volatile gint *int_address = address;
+  const gint *int_address = address;
 
   /* this implementation makes these (reasonable) assumptions: */
   G_STATIC_ASSERT (G_BYTE_ORDER == G_LITTLE_ENDIAN ||
@@ -389,6 +403,101 @@ g_futex_int_address (const volatile void *address)
   return int_address;
 }
 
+G_ALWAYS_INLINE static inline gpointer
+pointer_bit_lock_mask_ptr (gpointer ptr, guint lock_bit, gboolean set, guintptr preserve_mask, gpointer preserve_ptr)
+{
+  guintptr x_ptr;
+  guintptr x_preserve_ptr;
+  guintptr lock_mask;
+
+  x_ptr = (guintptr) ptr;
+
+  if (preserve_mask != 0)
+    {
+      x_preserve_ptr = (guintptr) preserve_ptr;
+      x_ptr = (x_preserve_ptr & preserve_mask) | (x_ptr & ~preserve_mask);
+    }
+
+  if (lock_bit == G_MAXUINT)
+    return (gpointer) x_ptr;
+
+  lock_mask = (guintptr) (1u << lock_bit);
+  if (set)
+    return (gpointer) (x_ptr | lock_mask);
+  else
+    return (gpointer) (x_ptr & ~lock_mask);
+}
+
+/**
+ * g_pointer_bit_lock_and_get:
+ * @address: (not nullable): a pointer to a #gpointer-sized value
+ * @lock_bit: a bit value between 0 and 31
+ * @out_ptr: (out) (optional): returns the set pointer atomically.
+ *   This is the value after setting the lock, it thus always has the
+ *   lock bit set, while previously @address had the lockbit unset.
+ *   You may also use g_pointer_bit_lock_mask_ptr() to clear the lock bit.
+ *
+ * This is equivalent to g_bit_lock, but working on pointers (or other
+ * pointer-sized values).
+ *
+ * For portability reasons, you may only lock on the bottom 32 bits of
+ * the pointer.
+ *
+ * Since: 2.80
+ **/
+void
+(g_pointer_bit_lock_and_get) (gpointer address,
+                              guint lock_bit,
+                              guintptr *out_ptr)
+{
+  guint class = bit_lock_contended_class (address);
+  guintptr mask;
+  guintptr v;
+
+  g_return_if_fail (lock_bit < 32);
+
+  mask = 1u << lock_bit;
+
+#ifdef USE_ASM_GOTO
+  if (G_LIKELY (!out_ptr))
+    {
+      while (TRUE)
+        {
+          __asm__ volatile goto ("lock bts %1, (%0)\n"
+                                 "jc %l[contended]"
+                                 : /* no output */
+                                 : "r"(address), "r"((gsize) lock_bit)
+                                 : "cc", "memory"
+                                 : contended);
+          return;
+
+        contended:
+          v = (guintptr) g_atomic_pointer_get ((gpointer *) address);
+          if (v & mask)
+            {
+              g_atomic_int_add (&g_bit_lock_contended[class], +1);
+              g_futex_wait (g_futex_int_address (address), v);
+              g_atomic_int_add (&g_bit_lock_contended[class], -1);
+            }
+        }
+    }
+#endif
+
+retry:
+  v = g_atomic_pointer_or ((gpointer *) address, mask);
+  if (v & mask)
+    /* already locked */
+    {
+      g_atomic_int_add (&g_bit_lock_contended[class], +1);
+      g_futex_wait (g_futex_int_address (address), (guint) v);
+      g_atomic_int_add (&g_bit_lock_contended[class], -1);
+      goto retry;
+    }
+
+  if (out_ptr)
+    *out_ptr = (v | mask);
+}
+
 /**
  * g_pointer_bit_lock:
  * @address: (not nullable): a pointer to a #gpointer-sized value
@@ -400,62 +509,16 @@ g_futex_int_address (const volatile void *address)
  * For portability reasons, you may only lock on the bottom 32 bits of
  * the pointer.
  *
+ * While @address has a `volatile` qualifier, this is a historical
+ * artifact and the argument passed to it should not be `volatile`.
+ *
  * Since: 2.30
  **/
 void
 (g_pointer_bit_lock) (volatile void *address,
-                      gint           lock_bit)
+                      gint lock_bit)
 {
-  g_return_if_fail (lock_bit < 32);
-
-  {
-#ifdef USE_ASM_GOTO
- retry:
-    asm volatile goto ("lock bts %1, (%0)\n"
-                       "jc %l[contended]"
-                       : /* no output */
-                       : "r" (address), "r" ((gsize) lock_bit)
-                       : "cc", "memory"
-                       : contended);
-    return;
-
- contended:
-    {
-      volatile gsize *pointer_address = address;
-      gsize mask = 1u << lock_bit;
-      gsize v;
-
-      v = (gsize) g_atomic_pointer_get (pointer_address);
-      if (v & mask)
-        {
-          guint class = ((gsize) address) % G_N_ELEMENTS (g_bit_lock_contended);
-
-          g_atomic_int_add (&g_bit_lock_contended[class], +1);
-          g_futex_wait (g_futex_int_address (address), v);
-          g_atomic_int_add (&g_bit_lock_contended[class], -1);
-        }
-    }
-    goto retry;
-#else
-  volatile gsize *pointer_address = address;
-  gsize mask = 1u << lock_bit;
-  gsize v;
-
- retry:
-  v = g_atomic_pointer_or (pointer_address, mask);
-  if (v & mask)
-    /* already locked */
-    {
-      guint class = ((gsize) address) % G_N_ELEMENTS (g_bit_lock_contended);
-
-      g_atomic_int_add (&g_bit_lock_contended[class], +1);
-      g_futex_wait (g_futex_int_address (address), (guint) v);
-      g_atomic_int_add (&g_bit_lock_contended[class], -1);
-
-      goto retry;
-    }
-#endif
-  }
+  g_pointer_bit_lock_and_get ((gpointer *) address, (guint) lock_bit, NULL);
 }
 
 /**
@@ -463,11 +526,14 @@ void
  * @address: (not nullable): a pointer to a #gpointer-sized value
  * @lock_bit: a bit value between 0 and 31
  *
- * This is equivalent to g_bit_trylock, but working on pointers (or
+ * This is equivalent to g_bit_trylock(), but working on pointers (or
  * other pointer-sized values).
  *
  * For portability reasons, you may only lock on the bottom 32 bits of
  * the pointer.
+ *
+ * While @address has a `volatile` qualifier, this is a historical
+ * artifact and the argument passed to it should not be `volatile`.
  *
  * Returns: %TRUE if the lock was acquired
  *
@@ -483,24 +549,25 @@ gboolean
 #ifdef USE_ASM_GOTO
     gboolean result;
 
-    asm volatile ("lock bts %2, (%1)\n"
-                  "setnc %%al\n"
-                  "movzx %%al, %0"
-                  : "=r" (result)
-                  : "r" (address), "r" ((gsize) lock_bit)
-                  : "cc", "memory");
+    __asm__ volatile ("lock bts %2, (%1)\n"
+                      "setnc %%al\n"
+                      "movzx %%al, %0"
+                      : "=r" (result)
+                      : "r" (address), "r" ((gsize) lock_bit)
+                      : "cc", "memory");
 
     return result;
 #else
-    volatile gsize *pointer_address = address;
+    void *address_nonvolatile = (void *) address;
+    gpointer *pointer_address = address_nonvolatile;
     gsize mask = 1u << lock_bit;
-    gsize v;
+    guintptr v;
 
     g_return_val_if_fail (lock_bit < 32, FALSE);
 
     v = g_atomic_pointer_or (pointer_address, mask);
 
-    return ~v & mask;
+    return (~(gsize) v & mask) != 0;
 #endif
   }
 }
@@ -516,31 +583,128 @@ gboolean
  * For portability reasons, you may only lock on the bottom 32 bits of
  * the pointer.
  *
+ * While @address has a `volatile` qualifier, this is a historical
+ * artifact and the argument passed to it should not be `volatile`.
+ *
  * Since: 2.30
  **/
 void
 (g_pointer_bit_unlock) (volatile void *address,
                         gint           lock_bit)
 {
+  void *address_nonvolatile = (void *) address;
+
   g_return_if_fail (lock_bit < 32);
 
   {
 #ifdef USE_ASM_GOTO
-    asm volatile ("lock btr %1, (%0)"
-                  : /* no output */
-                  : "r" (address), "r" ((gsize) lock_bit)
-                  : "cc", "memory");
+    __asm__ volatile ("lock btr %1, (%0)"
+                      : /* no output */
+                      : "r" (address), "r" ((gsize) lock_bit)
+                      : "cc", "memory");
 #else
-    volatile gsize *pointer_address = address;
+    gpointer *pointer_address = address_nonvolatile;
     gsize mask = 1u << lock_bit;
 
     g_atomic_pointer_and (pointer_address, ~mask);
 #endif
 
+    /* Warning: unlocking may allow another thread to proceed and destroy the
+     * memory that @address points to. We thus must not dereference it anymore.
+     */
+
     {
-      guint class = ((gsize) address) % G_N_ELEMENTS (g_bit_lock_contended);
+      guint class = bit_lock_contended_class (address_nonvolatile);
+
       if (g_atomic_int_get (&g_bit_lock_contended[class]))
-        g_futex_wake (g_futex_int_address (address));
+        g_futex_wake (g_futex_int_address (address_nonvolatile));
     }
   }
+}
+
+/**
+ * g_pointer_bit_lock_mask_ptr:
+ * @ptr: (nullable): the pointer to mask
+ * @lock_bit: the bit to set/clear. If set to `G_MAXUINT`, the
+ *   lockbit is taken from @preserve_ptr or @ptr (depending on @preserve_mask).
+ * @set: whether to set (lock) the bit or unset (unlock). This
+ *   has no effect, if @lock_bit is set to `G_MAXUINT`.
+ * @preserve_mask: if non-zero, a bit-mask for @preserve_ptr. The
+ *   @preserve_mask bits from @preserve_ptr are set in the result.
+ *   Note that the @lock_bit bit will be always set according to @set,
+ *   regardless of @preserve_mask and @preserve_ptr (unless @lock_bit is
+ *   `G_MAXUINT`).
+ * @preserve_ptr: (nullable): if @preserve_mask is non-zero, the bits
+ *   from this pointer are set in the result.
+ *
+ * This mangles @ptr as g_pointer_bit_lock() and g_pointer_bit_unlock()
+ * do.
+ *
+ * Returns: the mangled pointer.
+ *
+ * Since: 2.80
+ **/
+gpointer
+g_pointer_bit_lock_mask_ptr (gpointer ptr, guint lock_bit, gboolean set, guintptr preserve_mask, gpointer preserve_ptr)
+{
+  g_return_val_if_fail (lock_bit < 32u || lock_bit == G_MAXUINT, ptr);
+
+  return pointer_bit_lock_mask_ptr (ptr, lock_bit, set, preserve_mask, preserve_ptr);
+}
+
+/**
+ * g_pointer_bit_unlock_and_set:
+ * @address: (not nullable): a pointer to a #gpointer-sized value
+ * @lock_bit: a bit value between 0 and 31
+ * @ptr: the new pointer value to set
+ * @preserve_mask: if non-zero, those bits of the current pointer in @address
+ *   are preserved.
+ *   Note that the @lock_bit bit will be always set according to @set,
+ *   regardless of @preserve_mask and the currently set value in @address.
+ *
+ * This is equivalent to g_pointer_bit_unlock() and atomically setting
+ * the pointer value.
+ *
+ * Note that the lock bit will be cleared from the pointer. If the unlocked
+ * pointer that was set is not identical to @ptr, an assertion fails. In other
+ * words, @ptr must have @lock_bit unset. This also means, you usually can
+ * only use this on the lowest bits.
+ *
+ * Since: 2.80
+ **/
+void (g_pointer_bit_unlock_and_set) (void *address,
+                                     guint lock_bit,
+                                     gpointer ptr,
+                                     guintptr preserve_mask)
+{
+  gpointer *pointer_address = address;
+  guint class = bit_lock_contended_class (address);
+  gpointer ptr2;
+
+  g_return_if_fail (lock_bit < 32u);
+
+  if (preserve_mask != 0)
+    {
+      gpointer old_ptr = g_atomic_pointer_get ((gpointer *) address);
+
+    again:
+      ptr2 = pointer_bit_lock_mask_ptr (ptr, lock_bit, FALSE, preserve_mask, old_ptr);
+      if (!g_atomic_pointer_compare_and_exchange_full (pointer_address, old_ptr, ptr2, &old_ptr))
+        goto again;
+    }
+  else
+    {
+      ptr2 = pointer_bit_lock_mask_ptr (ptr, lock_bit, FALSE, 0, NULL);
+      g_atomic_pointer_set (pointer_address, ptr2);
+    }
+
+  if (g_atomic_int_get (&g_bit_lock_contended[class]) > 0)
+    g_futex_wake (g_futex_int_address (address));
+
+  /* It makes no sense, if unlocking mangles the pointer. Assert against
+   * that.
+   *
+   * Note that based on @preserve_mask, the pointer also gets mangled, which
+   * can make sense for the caller. We don't assert for that. */
+  g_return_if_fail (ptr == pointer_bit_lock_mask_ptr (ptr, lock_bit, FALSE, 0, NULL));
 }

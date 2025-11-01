@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,8 +26,11 @@
 #pragma once
 
 #include "RenderTheme.h"
+#include "ModernMediaControlResource.h"
 #include "GraphicsContext.h"
 #include "StyleResolver.h"
+#include "RenderStyleSetters.h"
+#include "RenderStyleInlines.h"
 
 #include <jni.h>
 
@@ -44,16 +47,14 @@ class RenderThemeJava final : public RenderTheme {
 public:
     RenderThemeJava();
 
-    bool canPaint(const PaintInfo&) const final { return true; }
-
     // A method asking if the theme's controls actually care about redrawing when hovered.
-    bool supportsHover(const RenderStyle&) const override { return true; }
+    bool supportsHover() const override { return true; }
 
 protected:
-    bool paintCheckbox(const RenderObject& o, const PaintInfo& i, const IntRect& r) override;
+    bool paintCheckbox(const RenderObject& o, const PaintInfo& i, const FloatRect& r) override;
     void setCheckboxSize(RenderStyle& style) const override;
 
-    bool paintRadio(const RenderObject& o, const PaintInfo& i, const IntRect& r) override;
+    bool paintRadio(const RenderObject& o, const PaintInfo& i, const FloatRect& r) override;
     void setRadioSize(RenderStyle& style) const override;
 
     void adjustButtonStyle(RenderStyle&, const Element*) const override;
@@ -63,54 +64,39 @@ protected:
     bool paintTextField(const RenderObject&, const PaintInfo&, const FloatRect&) override;
 
     void adjustSearchFieldStyle(RenderStyle&, const Element*) const override;
-    bool paintSearchField(const RenderObject&, const PaintInfo&, const IntRect&) override;
+    bool paintSearchField(const RenderObject&, const PaintInfo&, const FloatRect&) override;
 
     void adjustMenuListStyle(RenderStyle&, const Element*) const override;
     bool paintMenuList(const RenderObject&, const PaintInfo&, const FloatRect&) override;
 
     void adjustMenuListButtonStyle(RenderStyle&, const Element*) const override;
-    bool paintMenuListButtonDecorations(const RenderBox&, const PaintInfo&, const FloatRect&) override;
+    void paintMenuListButtonDecorations(const RenderBox&, const PaintInfo&, const FloatRect&) override;
 
     void adjustTextAreaStyle(RenderStyle&, const Element* e) const override;
     bool paintTextArea(const RenderObject&, const PaintInfo&, const FloatRect&) override;
-    bool supportsFocusRing(const RenderStyle&) const override;
+    bool supportsFocusRing(const RenderObject&, const RenderStyle&) const override;
 
-    Color platformActiveSelectionBackgroundColor(OptionSet<StyleColor::Options>) const override;
-    Color platformInactiveSelectionBackgroundColor(OptionSet<StyleColor::Options>) const override;
-    Color platformActiveSelectionForegroundColor(OptionSet<StyleColor::Options>) const override;
-    Color platformInactiveSelectionForegroundColor(OptionSet<StyleColor::Options>) const override;
+    Color platformActiveSelectionBackgroundColor(OptionSet<StyleColorOptions>) const override;
+    Color platformInactiveSelectionBackgroundColor(OptionSet<StyleColorOptions>) const override;
+    Color platformActiveSelectionForegroundColor(OptionSet<StyleColorOptions>) const override;
+    Color platformInactiveSelectionForegroundColor(OptionSet<StyleColorOptions>) const override;
 
 #if ENABLE(VIDEO)
-    String mediaControlsScript() override;
+    virtual Vector<String, 2> mediaControlsScripts() override;
     String extraMediaControlsStyleSheet() override;
 
-    String formatMediaControlsCurrentTime(float currentTime, float duration) const override;
-    String formatMediaControlsRemainingTime(float currentTime, float duration) const override;
-
-    bool paintMediaPlayButton(const RenderObject&, const PaintInfo&, const IntRect&) override;
-    bool paintMediaMuteButton(const RenderObject&, const PaintInfo&, const IntRect&) override;
     bool paintMediaSliderTrack(const RenderObject&, const PaintInfo&, const IntRect&) override;
     bool paintMediaSliderThumb(const RenderObject&, const PaintInfo&, const IntRect&) override;
-    bool paintMediaVolumeSliderContainer(const RenderObject&, const PaintInfo&, const IntRect&) override;
-    bool paintMediaVolumeSliderTrack(const RenderObject&, const PaintInfo&, const IntRect&) override;
-    bool paintMediaVolumeSliderThumb(const RenderObject&, const PaintInfo&, const IntRect&) override;
-    bool paintMediaControlsBackground(const RenderObject&, const PaintInfo&, const IntRect&) override;
-    bool paintMediaCurrentTime(const RenderObject&, const PaintInfo&, const IntRect&) override;
-    bool paintMediaTimeRemaining(const RenderObject&, const PaintInfo&, const IntRect&) override;
-
 #endif
+    void adjustSwitchStyle(RenderStyle& style, const Element*) const override;
 
-#if ENABLE(PROGRESS_ELEMENT)
-    double animationRepeatIntervalForProgressBar(RenderProgress&) const override;
-    double animationDurationForProgressBar(RenderProgress&) const override;
-    void adjustProgressBarStyle(StyleResolver&, RenderStyle&, Element*) const override;
+    Seconds animationRepeatIntervalForProgressBar(const RenderProgress&) const override;
+    Seconds animationDurationForProgressBar() const override;
+    void adjustProgressBarStyle(RenderStyle&, const Element*) const override;
     bool paintProgressBar(const RenderObject&, const PaintInfo&, const IntRect&) override;
-#endif
 
-#if ENABLE(METER_ELEMENT)
-    bool supportsMeter(ControlPart) const override;
+    bool supportsMeter(StyleAppearance) const override;
     bool paintMeter(const RenderObject&, const PaintInfo&, const IntRect&) override;
-#endif
 
 #if ENABLE(DATALIST_ELEMENT)
     // Returns size of one slider tick mark for a horizontal track.
@@ -125,17 +111,17 @@ protected:
 
     void adjustSliderTrackStyle(RenderStyle&, const Element*) const override;
     bool paintSliderTrack(const RenderObject&, const PaintInfo&, const IntRect&) override;
-
+    String mediaControlsBase64StringForIconNameAndType(const String&, const String&);
+    String mediaControlsStyleSheet();
 
 private:
-    virtual void updateCachedSystemFontDescription(CSSValueID, FontCascadeDescription&) const override;
-
     int createWidgetState(const RenderObject& o);
     bool paintWidget(int widgetIndex, const RenderObject& o,
                      const PaintInfo& i, const IntRect& rect);
     bool paintWidget(int widgetIndex, const RenderObject& o,
                      const PaintInfo& i, const FloatRect& rect);
     Color getSelectionColor(int index) const;
+    std::unique_ptr<MediaControlResource> mediaResource;
 #if ENABLE(VIDEO)
     bool paintMediaControl(jint type, const RenderObject&, const PaintInfo&, const IntRect&);
 #endif

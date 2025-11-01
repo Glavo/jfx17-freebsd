@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,9 +27,12 @@
 
 
 #include <WebCore/DOMException.h>
+#include <WebCore/Document.h>
 #include <WebCore/DocumentFragment.h>
 #include <WebCore/Node.h>
 #include <WebCore/Range.h>
+#include <WebCore/SimpleRange.h>
+#include <WebCore/TextIterator.h>
 #include <WebCore/JSExecState.h>
 
 #include <wtf/RefPtr.h>
@@ -42,7 +45,7 @@ using namespace WebCore;
 
 extern "C" {
 
-#define IMPL (static_cast<Range*>(jlong_to_ptr(peer)))
+#define IMPL (static_cast<WebCore::Range*>(jlong_to_ptr(peer)))
 
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_RangeImpl_dispose(JNIEnv*, jclass, jlong peer)
 {
@@ -90,7 +93,10 @@ JNIEXPORT jlong JNICALL Java_com_sun_webkit_dom_RangeImpl_getCommonAncestorConta
 JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_RangeImpl_getTextImpl(JNIEnv* env, jclass, jlong peer)
 {
     WebCore::JSMainThreadNullState state;
-    return JavaReturn<String>(env, IMPL->text());
+
+    auto range = makeSimpleRange(*IMPL);
+    range.start.document().updateLayout();
+    return JavaReturn<String>(env, plainText(range));
 }
 
 
@@ -211,7 +217,7 @@ JNIEXPORT jshort JNICALL Java_com_sun_webkit_dom_RangeImpl_compareBoundaryPoints
         raiseTypeErrorException(env);
         return 0;
     }
-    return raiseOnDOMError(env, IMPL->compareBoundaryPoints(static_cast<Range::CompareHow>(how), *static_cast<Range*>(jlong_to_ptr(sourceRange))));
+    return raiseOnDOMError(env, IMPL->compareBoundaryPoints(static_cast<WebCore::Range::CompareHow>(how), *static_cast<WebCore::Range*>(jlong_to_ptr(sourceRange))));
 }
 
 
@@ -263,7 +269,7 @@ JNIEXPORT void JNICALL Java_com_sun_webkit_dom_RangeImpl_surroundContentsImpl(JN
 JNIEXPORT jlong JNICALL Java_com_sun_webkit_dom_RangeImpl_cloneRangeImpl(JNIEnv* env, jclass, jlong peer)
 {
     WebCore::JSMainThreadNullState state;
-    return JavaReturn<Range>(env, WTF::getPtr(IMPL->cloneRange()));
+    return JavaReturn<WebCore::Range>(env, WTF::getPtr(IMPL->cloneRange()));
 }
 
 
@@ -285,7 +291,7 @@ JNIEXPORT jlong JNICALL Java_com_sun_webkit_dom_RangeImpl_createContextualFragme
     , jstring html)
 {
     WebCore::JSMainThreadNullState state;
-    return JavaReturn<DocumentFragment>(env, WTF::getPtr(raiseOnDOMError(env, IMPL->createContextualFragment(String(env, html)))));
+    return JavaReturn<DocumentFragment>(env, WTF::getPtr(raiseOnDOMError(env, IMPL->createContextualFragment(AtomString {String(env, html)}))));
 }
 
 
@@ -323,7 +329,7 @@ JNIEXPORT jboolean JNICALL Java_com_sun_webkit_dom_RangeImpl_intersectsNodeImpl(
         raiseTypeErrorException(env);
         return JNI_FALSE;
     }
-    return raiseOnDOMError(env, IMPL->intersectsNode(*static_cast<Node*>(jlong_to_ptr(refNode))));
+    return IMPL->intersectsNode(*static_cast<Node*>(jlong_to_ptr(refNode)));
 }
 
 
@@ -345,7 +351,7 @@ JNIEXPORT void JNICALL Java_com_sun_webkit_dom_RangeImpl_expandImpl(JNIEnv* env,
     , jstring unit)
 {
     WebCore::JSMainThreadNullState state;
-    raiseOnDOMError(env, IMPL->expand(String(env, unit)));
+    raiseOnDOMError(env, IMPL->expand(AtomString{String(env, unit)}));
 }
 
 

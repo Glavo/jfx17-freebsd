@@ -170,6 +170,9 @@ typedef struct _GstAudioMeta GstAudioMeta;
  * case to do so. It is, however, allowed to attach it, for some potential
  * future use case.
  *
+ * Since 1.24 it can be serialized using gst_meta_serialize() and
+ * gst_meta_deserialize().
+ *
  * Since: 1.16
  */
 struct _GstAudioMeta {
@@ -197,6 +200,55 @@ GST_AUDIO_API
 GstAudioMeta * gst_buffer_add_audio_meta (GstBuffer *buffer,
                                           const GstAudioInfo *info,
                                           gsize samples, gsize offsets[]);
+
+/**
+ * GST_AUDIO_LEVEL_META_API_TYPE:
+ *
+ * The #GType associated with #GstAudioLevelMeta.
+ *
+ * Since: 1.20
+ */
+#define GST_AUDIO_LEVEL_META_API_TYPE  (gst_audio_level_meta_api_get_type())
+/**
+ * GST_AUDIO_LEVEL_META_INFO:
+ *
+ * The #GstMetaInfo associated with #GstAudioLevelMeta.
+ *
+ * Since: 1.20
+ */
+#define GST_AUDIO_LEVEL_META_INFO  (gst_audio_level_meta_get_info())
+typedef struct _GstAudioLevelMeta GstAudioLevelMeta;
+
+/**
+ * GstAudioLevelMeta:
+ * @meta: parent #GstMeta
+ * @level: the -dBov from 0-127 (127 is silence).
+ * @voice_activity: whether the buffer contains voice activity
+ *
+ * Meta containing Audio Level Indication: https://tools.ietf.org/html/rfc6464
+ *
+ * Since: 1.20
+ */
+struct _GstAudioLevelMeta
+{
+  GstMeta meta;
+
+  guint8 level;
+  gboolean voice_activity;
+};
+
+GST_AUDIO_API
+GType                  gst_audio_level_meta_api_get_type                (void);
+
+GST_AUDIO_API
+const GstMetaInfo *    gst_audio_level_meta_get_info                    (void);
+
+GST_AUDIO_API
+GstAudioLevelMeta * gst_buffer_add_audio_level_meta                     (GstBuffer * buffer,
+                                                                         guint8 level,
+                                                                         gboolean voice_activity);
+GST_AUDIO_API
+GstAudioLevelMeta * gst_buffer_get_audio_level_meta                     (GstBuffer * buffer);
 
 G_END_DECLS
 

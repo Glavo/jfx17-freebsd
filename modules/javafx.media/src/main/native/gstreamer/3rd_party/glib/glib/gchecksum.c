@@ -2,6 +2,8 @@
  *
  * Copyright (C) 2007  Emmanuele Bassi  <ebassi@gnome.org>
  *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
@@ -31,25 +33,26 @@
 
 
 /**
- * SECTION:checksum
- * @title: Data Checksums
- * @short_description: computes the checksum for data
+ * GChecksum:
  *
- * GLib provides a generic API for computing checksums (or "digests")
+ * GLib provides a generic API for computing checksums (or ‘digests’)
  * for a sequence of arbitrary bytes, using various hashing algorithms
  * like MD5, SHA-1 and SHA-256. Checksums are commonly used in various
  * environments and specifications.
  *
- * GLib supports incremental checksums using the GChecksum data
- * structure, by calling g_checksum_update() as long as there's data
- * available and then using g_checksum_get_string() or
- * g_checksum_get_digest() to compute the checksum and return it either
- * as a string in hexadecimal form, or as a raw sequence of bytes. To
- * compute the checksum for binary blobs and NUL-terminated strings in
- * one go, use the convenience functions g_compute_checksum_for_data()
- * and g_compute_checksum_for_string(), respectively.
+ * To create a new `GChecksum`, use [ctor@GLib.Checksum.new]. To free
+ * a `GChecksum`, use [method@GLib.Checksum.free].
  *
- * Support for checksums has been added in GLib 2.16
+ * GLib supports incremental checksums using the `GChecksum` data
+ * structure, by calling [method@GLib.Checksum.update] as long as there’s data
+ * available and then using [method@GLib.Checksum.get_string] or
+ * [method@GLib.Checksum.get_digest] to compute the checksum and return it
+ * either as a string in hexadecimal form, or as a raw sequence of bytes. To
+ * compute the checksum for binary blobs and nul-terminated strings in
+ * one go, use the convenience functions [func@GLib.compute_checksum_for_data]
+ * and [func@GLib.compute_checksum_for_string], respectively.
+ *
+ * Since: 2.16
  **/
 
 #define IS_VALID_TYPE(type)     ((type) >= G_CHECKSUM_MD5 && (type) <= G_CHECKSUM_SHA384)
@@ -1461,7 +1464,7 @@ g_checksum_type_get_length (GChecksumType checksum_type)
  * will be closed and it won't be possible to call g_checksum_update()
  * on it anymore.
  *
- * Returns: (transfer full): the newly created #GChecksum, or %NULL.
+ * Returns: (transfer full) (nullable): the newly created #GChecksum, or %NULL.
  *   Use g_checksum_free() to free the memory allocated by it.
  *
  * Since: 2.16
@@ -1529,8 +1532,8 @@ g_checksum_reset (GChecksum *checksum)
  * g_checksum_get_string() or g_checksum_get_digest(), the copied
  * checksum will be closed as well.
  *
- * Returns: the copy of the passed #GChecksum. Use g_checksum_free()
- *   when finished using it.
+ * Returns: (transfer full): the copy of the passed #GChecksum. Use
+ *   g_checksum_free() when finished using it.
  *
  * Since: 2.16
  */
@@ -1780,8 +1783,10 @@ g_checksum_get_digest (GChecksum  *checksum,
  *
  * The hexadecimal string returned will be in lower case.
  *
- * Returns: the digest of the binary data as a string in hexadecimal.
- *   The returned string should be freed with g_free() when done using it.
+ * Returns: (transfer full) (nullable): the digest of the binary data as a
+ *   string in hexadecimal, or %NULL if g_checksum_new() fails for
+ *   @checksum_type. The returned string should be freed with g_free() when
+ *   done using it.
  *
  * Since: 2.16
  */
@@ -1793,7 +1798,6 @@ g_compute_checksum_for_data (GChecksumType  checksum_type,
   GChecksum *checksum;
   gchar *retval;
 
-  g_return_val_if_fail (IS_VALID_TYPE (checksum_type), NULL);
   g_return_val_if_fail (length == 0 || data != NULL, NULL);
 
   checksum = g_checksum_new (checksum_type);
@@ -1817,7 +1821,8 @@ g_compute_checksum_for_data (GChecksumType  checksum_type,
  *
  * The hexadecimal string returned will be in lower case.
  *
- * Returns: the checksum as a hexadecimal string. The returned string
+ * Returns: (transfer full) (nullable): the checksum as a hexadecimal string,
+ *   or %NULL if g_checksum_new() fails for @checksum_type. The returned string
  *   should be freed with g_free() when done using it.
  *
  * Since: 2.16
@@ -1827,7 +1832,6 @@ g_compute_checksum_for_string (GChecksumType  checksum_type,
                                const gchar   *str,
                                gssize         length)
 {
-  g_return_val_if_fail (IS_VALID_TYPE (checksum_type), NULL);
   g_return_val_if_fail (length == 0 || str != NULL, NULL);
 
   if (length < 0)
@@ -1847,8 +1851,10 @@ g_compute_checksum_for_string (GChecksumType  checksum_type,
  *
  * The hexadecimal string returned will be in lower case.
  *
- * Returns: the digest of the binary data as a string in hexadecimal.
- *   The returned string should be freed with g_free() when done using it.
+ * Returns: (transfer full) (nullable): the digest of the binary data as a
+ *   string in hexadecimal, or %NULL if g_checksum_new() fails for
+ *   @checksum_type. The returned string should be freed with g_free() when
+ *   done using it.
  *
  * Since: 2.34
  */
@@ -1859,7 +1865,6 @@ g_compute_checksum_for_bytes (GChecksumType  checksum_type,
   gconstpointer byte_data;
   gsize length;
 
-  g_return_val_if_fail (IS_VALID_TYPE (checksum_type), NULL);
   g_return_val_if_fail (data != NULL, NULL);
 
   byte_data = g_bytes_get_data (data, &length);

@@ -30,7 +30,7 @@
  */
 
 #pragma once
-
+#if PLATFORM(JAVA)
 #include <wtf/ThreadSafeRefCounted.h>
 #include <wtf/URL.h>
 
@@ -39,13 +39,13 @@ namespace WebCore {
 struct CookieRequestHeaderFieldProxy;
 class SocketStreamHandleClient;
 
-typedef struct {
+struct SourceApplicationAuditToken {
 #if PLATFORM(COCOA)
     RetainPtr<CFDataRef> sourceApplicationAuditData;
 #else
     void *empty { nullptr };
 #endif
-} SourceApplicationAuditToken;
+};
 
 class SocketStreamHandle : public ThreadSafeRefCounted<SocketStreamHandle, WTF::DestructionThread::Main> {
 public:
@@ -53,8 +53,8 @@ public:
     virtual ~SocketStreamHandle() = default;
     SocketStreamState state() const;
 
-    void sendData(const char* data, size_t length, Function<void(bool)>);
-    void sendHandshake(CString&& handshake, Optional<CookieRequestHeaderFieldProxy>&&, Function<void(bool, bool)>);
+    void sendData(std::span<const uint8_t> data, Function<void(bool)>);
+    void sendHandshake(CString&& handshake, std::optional<CookieRequestHeaderFieldProxy>&&, Function<void(bool, bool)>);
     void close(); // Disconnect after all data in buffer are sent.
     void disconnect();
     virtual size_t bufferedAmount() = 0;
@@ -62,8 +62,8 @@ public:
 protected:
     WEBCORE_EXPORT SocketStreamHandle(const URL&, SocketStreamHandleClient&);
 
-    virtual void platformSend(const uint8_t* data, size_t length, Function<void(bool)>&&) = 0;
-    virtual void platformSendHandshake(const uint8_t* data, size_t length, const Optional<CookieRequestHeaderFieldProxy>&, Function<void(bool, bool)>&&) = 0;
+    virtual void platformSend(std::span<const uint8_t> data, Function<void(bool)>&&) = 0;
+    virtual void platformSendHandshake(std::span<const uint8_t> data, const std::optional<CookieRequestHeaderFieldProxy>&, Function<void(bool, bool)>&&) = 0;
     virtual void platformClose() = 0;
 
     URL m_url;
@@ -72,3 +72,4 @@ protected:
 };
 
 } // namespace WebCore
+#endif

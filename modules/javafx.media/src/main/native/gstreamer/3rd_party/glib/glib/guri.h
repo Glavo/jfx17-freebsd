@@ -1,6 +1,8 @@
 /* GLIB - Library of useful routines for C programming
  * Copyright © 2020 Red Hat, Inc.
  *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
@@ -62,6 +64,10 @@ void         g_uri_unref            (GUri *uri);
  * @G_URI_FLAGS_ENCODED_PATH: Same as %G_URI_FLAGS_ENCODED, for the path only.
  * @G_URI_FLAGS_ENCODED_FRAGMENT: Same as %G_URI_FLAGS_ENCODED, for the
  *     fragment only.
+ * @G_URI_FLAGS_SCHEME_NORMALIZE: A scheme-based normalization will be applied.
+ *     For example, when parsing an HTTP URI changing omitted path to `/` and
+ *     omitted port to `80`; and when building a URI, changing empty path to `/`
+ *     and default port `80`). This only supports a subset of known schemes. (Since: 2.68)
  *
  * Flags that describe a URI.
  *
@@ -83,6 +89,7 @@ typedef enum {
   G_URI_FLAGS_ENCODED_QUERY   = 1 << 5,
   G_URI_FLAGS_ENCODED_PATH    = 1 << 6,
   G_URI_FLAGS_ENCODED_FRAGMENT = 1 << 7,
+  G_URI_FLAGS_SCHEME_NORMALIZE GLIB_AVAILABLE_ENUMERATOR_IN_2_68 = 1 << 8,
 } GUriFlags;
 
 GLIB_AVAILABLE_IN_2_66

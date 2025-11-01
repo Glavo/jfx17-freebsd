@@ -29,14 +29,14 @@
 # endif
 #endif
 
-/* This needs to be before glib.h, since it might be used in inline
- * functions */
-extern const char             g_log_domain_gstreamer[];
-
 #include <glib.h>
 
 #include <stdlib.h>
 #include <string.h>
+
+#ifdef GSTREAMER_LITE
+#include <glib/gprintf.h>       /* g_vasprintf */
+#endif // GSTREAMER_LITE
 
 /* Needed for GST_API */
 #include "gst/gstconfig.h"
@@ -90,7 +90,8 @@ typedef struct {
 } GstPluginDep;
 
 struct _GstPluginPrivate {
-  GList *deps;    /* list of GstPluginDep structures */
+  GList *deps;                 /* list of GstPluginDep structures */
+  GstStructure *status_info;
   GstStructure *cache_data;
 };
 
@@ -117,8 +118,6 @@ G_GNUC_INTERNAL  gboolean priv_gst_plugin_desc_is_whitelisted (const GstPluginDe
 G_GNUC_INTERNAL  gboolean _priv_plugin_deps_env_vars_changed (GstPlugin * plugin);
 
 G_GNUC_INTERNAL  gboolean _priv_plugin_deps_files_changed (GstPlugin * plugin);
-
-G_GNUC_INTERNAL  gboolean _priv_gst_in_valgrind (void);
 
 /* init functions called from gst_init(). */
 G_GNUC_INTERNAL  void  _priv_gst_quarks_initialize (void);
@@ -150,6 +149,7 @@ G_GNUC_INTERNAL  void  _priv_gst_allocator_cleanup (void);
 G_GNUC_INTERNAL  void  _priv_gst_caps_features_cleanup (void);
 G_GNUC_INTERNAL  void  _priv_gst_caps_cleanup (void);
 G_GNUC_INTERNAL  void  _priv_gst_debug_cleanup (void);
+G_GNUC_INTERNAL  void  _priv_gst_meta_cleanup (void);
 
 /* called from gst_task_cleanup_all(). */
 G_GNUC_INTERNAL  void  _priv_gst_element_cleanup (void);
@@ -161,7 +161,7 @@ gboolean _priv_gst_registry_remove_cache_plugins (GstRegistry *registry);
 G_GNUC_INTERNAL  void _priv_gst_registry_cleanup (void);
 
 GST_API
-gboolean _gst_plugin_loader_client_run (void);
+gboolean _gst_plugin_loader_client_run (const gchar * pipe_name);
 
 G_GNUC_INTERNAL  GstPlugin * _priv_gst_plugin_load_file_for_registry (const gchar *filename,
                                                                       GstRegistry * registry,
@@ -173,8 +173,8 @@ G_GNUC_INTERNAL const char * _priv_gst_value_gtype_to_abbr (GType type);
 
 G_GNUC_INTERNAL gboolean _priv_gst_value_parse_string (gchar * s, gchar ** end, gchar ** next, gboolean unescape);
 G_GNUC_INTERNAL gboolean _priv_gst_value_parse_simple_string (gchar * str, gchar ** end);
-G_GNUC_INTERNAL gboolean _priv_gst_value_parse_value (gchar * str, gchar ** after, GValue * value, GType default_type);
-G_GNUC_INTERNAL gchar * _priv_gst_value_serialize_any_list (const GValue * value, const gchar * begin, const gchar * end, gboolean print_type);
+G_GNUC_INTERNAL gboolean _priv_gst_value_parse_value (gchar * str, gchar ** after, GValue * value, GType default_type, GParamSpec *pspec);
+G_GNUC_INTERNAL gchar * _priv_gst_value_serialize_any_list (const GValue * value, const gchar * begin, const gchar * end, gboolean print_type, GstSerializeFlags flags);
 
 /* Used in GstBin for manual state handling */
 G_GNUC_INTERNAL  void _priv_gst_element_state_changed (GstElement *element,
@@ -186,7 +186,8 @@ G_GNUC_INTERNAL  void _priv_gst_element_state_changed (GstElement *element,
 
 G_GNUC_INTERNAL
 gboolean  priv_gst_structure_append_to_gstring (const GstStructure * structure,
-                                                GString            * s);
+                                                GString            * s,
+                                                GstSerializeFlags flags);
 G_GNUC_INTERNAL
 gboolean priv__gst_structure_append_template_to_gstring (GQuark field_id,
                                                         const GValue *value,
@@ -196,7 +197,7 @@ G_GNUC_INTERNAL
 void priv_gst_caps_features_append_to_gstring (const GstCapsFeatures * features, GString *s);
 
 G_GNUC_INTERNAL
-gboolean priv_gst_structure_parse_name (gchar * str, gchar **start, gchar ** end, gchar ** next);
+gboolean priv_gst_structure_parse_name (gchar * str, gchar **start, gchar ** end, gchar ** next, gboolean check_valid);
 G_GNUC_INTERNAL
 gboolean priv_gst_structure_parse_fields (gchar *str, gchar ** end, GstStructure *structure);
 
@@ -354,11 +355,16 @@ extern GstClockTime _priv_gst_start_time;
 
 #endif
 
-#ifdef GST_DISABLE_GST_DEBUG
-/* for _gst_element_error_printf */
-#define __gst_vasprintf __gst_info_fallback_vasprintf
-int __gst_vasprintf (char **result, char const *format, va_list args);
-#endif
+#ifdef GSTREAMER_LITE
+// In pre 1.22.6 __gst_vasprintf was defined as __gst_info_fallback_vasprintf
+// when debug subsystem is diabled and starting from 1.26.0 upgrade we need to
+// use __gst_vasprintf from gst/printf. As of now I do not see need to pull
+// gst/printf code, since it is needed to handle old pointer extension formats
+// such as %P and %Q and then call g_vasprintf. See __gst_info_fallback_vasprintf
+// implementation in pre 1.22.6. Since we do not use old extension formats, we
+// will use g_vasprintf direcly.
+#define __gst_vasprintf g_vasprintf
+#endif // GSTREAMER_LITE
 
 /**** objects made opaque until the private bits have been made private ****/
 
@@ -526,12 +532,19 @@ struct _GstDynamicTypeFactoryClass {
 struct _GstClockEntryImpl
 {
   GstClockEntry entry;
-  GWeakRef clock;
+  GWeakRef *clock;
   GDestroyNotify destroy_entry;
   gpointer padding[21];                 /* padding for allowing e.g. systemclock
                                          * to add data in lieu of overridable
                                          * virtual functions on the clock */
 };
+
+char * priv_gst_get_relocated_libgstreamer (void);
+gint   priv_gst_count_directories (const char *filepath);
+
+void priv_gst_clock_init (void);
+GstClockTime priv_gst_get_monotonic_time (void);
+GstClockTime priv_gst_get_real_time (void);
 
 G_END_DECLS
 #endif /* __GST_PRIVATE_H__ */

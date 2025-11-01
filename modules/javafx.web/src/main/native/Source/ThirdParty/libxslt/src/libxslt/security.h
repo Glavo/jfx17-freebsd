@@ -58,7 +58,7 @@ typedef int (*xsltSecurityCheck)    (xsltSecurityPrefsPtr sec,
 XSLTPUBFUN xsltSecurityPrefsPtr XSLTCALL
             xsltNewSecurityPrefs    (void);
 XSLTPUBFUN void XSLTCALL
-            xsltFreeSecurityPrefs   (xsltSecurityPrefsPtr sec);
+            xsltFreeSecurityPrefs    (xsltSecurityPrefsPtr sec);
 XSLTPUBFUN int XSLTCALL
             xsltSetSecurityPrefs    (xsltSecurityPrefsPtr sec,
                          xsltSecurityOption option,
@@ -68,31 +68,31 @@ XSLTPUBFUN xsltSecurityCheck XSLTCALL
                          xsltSecurityOption option);
 
 XSLTPUBFUN void XSLTCALL
-            xsltSetDefaultSecurityPrefs (xsltSecurityPrefsPtr sec);
+            xsltSetDefaultSecurityPrefs    (xsltSecurityPrefsPtr sec);
 XSLTPUBFUN xsltSecurityPrefsPtr XSLTCALL
-            xsltGetDefaultSecurityPrefs (void);
+            xsltGetDefaultSecurityPrefs    (void);
 
 XSLTPUBFUN int XSLTCALL
             xsltSetCtxtSecurityPrefs    (xsltSecurityPrefsPtr sec,
                          xsltTransformContextPtr ctxt);
 
 XSLTPUBFUN int XSLTCALL
-            xsltSecurityAllow       (xsltSecurityPrefsPtr sec,
+            xsltSecurityAllow        (xsltSecurityPrefsPtr sec,
                          xsltTransformContextPtr ctxt,
                          const char *value);
 XSLTPUBFUN int XSLTCALL
-            xsltSecurityForbid      (xsltSecurityPrefsPtr sec,
+            xsltSecurityForbid        (xsltSecurityPrefsPtr sec,
                          xsltTransformContextPtr ctxt,
                          const char *value);
 /*
  * internal interfaces
  */
 XSLTPUBFUN int XSLTCALL
-            xsltCheckWrite      (xsltSecurityPrefsPtr sec,
+            xsltCheckWrite        (xsltSecurityPrefsPtr sec,
                          xsltTransformContextPtr ctxt,
                          const xmlChar *URL);
 XSLTPUBFUN int XSLTCALL
-            xsltCheckRead       (xsltSecurityPrefsPtr sec,
+            xsltCheckRead        (xsltSecurityPrefsPtr sec,
                          xsltTransformContextPtr ctxt,
                          const xmlChar *URL);
 

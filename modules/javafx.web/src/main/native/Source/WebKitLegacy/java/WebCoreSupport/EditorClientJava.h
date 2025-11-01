@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,7 +43,7 @@ public:
     EditorClientJava(const JLObject &webPage);
     ~EditorClientJava() override;
 
-    bool shouldDeleteRange(const Optional<SimpleRange>&) override;
+    bool shouldDeleteRange(const std::optional<SimpleRange>&) override;
     bool smartInsertDeleteEnabled() override;
     bool isSelectTrailingWhitespaceEnabled() const override;
     bool isContinuousSpellCheckingEnabled() override;
@@ -54,34 +54,35 @@ public:
 
     bool shouldBeginEditing(const SimpleRange&) override;
     bool shouldEndEditing(const SimpleRange&) override;
-    bool shouldInsertNode(Node&, const Optional<SimpleRange>&, EditorInsertAction) override;
-    bool shouldInsertText(const String&, const Optional<SimpleRange>&, EditorInsertAction) override;
-    bool shouldChangeSelectedRange(const Optional<SimpleRange>& fromRange, const Optional<SimpleRange>& toRange, EAffinity, bool stillSelecting) override;
+    bool shouldInsertNode(Node&, const std::optional<SimpleRange>&, EditorInsertAction) override;
+    bool shouldInsertText(const String&, const std::optional<SimpleRange>&, EditorInsertAction) override;
+    bool shouldChangeSelectedRange(const std::optional<SimpleRange>& fromRange, const std::optional<SimpleRange>& toRange, Affinity, bool stillSelecting) override;
 
-    bool shouldApplyStyle(const StyleProperties&, const Optional<SimpleRange>&) override;
+    bool shouldApplyStyle(const StyleProperties&, const std::optional<SimpleRange>&) override;
     void didApplyStyle() override;
     bool shouldMoveRangeAfterDelete(const SimpleRange&, const SimpleRange&) override;
 
     void didBeginEditing() override;
     void respondToChangedContents() override;
-    void respondToChangedSelection(Frame*) override;
-    void didEndUserTriggeredSelectionChanges() final { }
+    void respondToChangedSelection(LocalFrame*) override;
+    void didEndUserTriggeredSelectionChanges() override { }
     void updateEditorStateAfterLayoutIfEditabilityChanged() override;
     void didEndEditing() override;
-    void willWriteSelectionToPasteboard(const Optional<SimpleRange>&) override;
+    void willWriteSelectionToPasteboard(const std::optional<SimpleRange>&) override;
     void didWriteSelectionToPasteboard() override;
-    void getClientPasteboardData(const Optional<SimpleRange>&, Vector<String>& pasteboardTypes, Vector<RefPtr<SharedBuffer> >& pasteboardData) override;
-    void didUpdateComposition() final { }
+    virtual void getClientPasteboardData(const std::optional<SimpleRange>&, Vector<std::pair<String, RefPtr<WebCore::SharedBuffer>>>& pasteboardTypesAndData) override;
+    void didUpdateComposition() override { }
 
-    void discardedComposition(Frame*) override;
+    DOMPasteAccessResponse requestDOMPasteAccess(DOMPasteAccessCategory, FrameIdentifier, const String& originIdentifier) override;
+    void discardedComposition(const Document&) override;
     void canceledComposition() override;
 
     void registerUndoStep(UndoStep&) override;
     void registerRedoStep(UndoStep&) override;
     void clearUndoRedoOperations() override;
 
-    bool canCopyCut(Frame*, bool defaultValue) const override;
-    bool canPaste(Frame*, bool defaultValue) const override;
+    bool canCopyCut(LocalFrame*, bool defaultValue) const override;
+    bool canPaste(LocalFrame*, bool defaultValue) const override;
     bool canUndo() const override;
     bool canRedo() const override;
 
@@ -91,14 +92,14 @@ public:
     void handleKeyboardEvent(KeyboardEvent&) override;
     void handleInputMethodKeydown(KeyboardEvent&) override;
 
-    void textFieldDidBeginEditing(Element*) override;
-    void textFieldDidEndEditing(Element*) override;
-    void textDidChangeInTextField(Element*) override;
-    bool doTextFieldCommandFromEvent(Element*, KeyboardEvent*) override;
-    void textWillBeDeletedInTextField(Element*) override;
-    void textDidChangeInTextArea(Element*) override;
+    void textFieldDidBeginEditing(Element&) override;
+    void textFieldDidEndEditing(Element&) override;
+    void textDidChangeInTextField(Element&) override;
+    bool doTextFieldCommandFromEvent(Element&, KeyboardEvent*) override;
+    void textWillBeDeletedInTextField(Element&) override;
+    void textDidChangeInTextArea(Element&) override;
     void overflowScrollPositionChanged() override;
-    void subFrameScrollPositionChanged() final { }
+    void subFrameScrollPositionChanged() override;
 
 #if USE(APPKIT)
     void uppercaseWord() override;
@@ -132,7 +133,6 @@ public:
     void updateSpellingUIWithMisspelledWord(const String&) override;
     void showSpellingUI(bool show) override;
     bool spellingUIIsShowing() override;
-    void willSetInputMethodState() override;
     void setInputMethodState(Element*) override;
 
     // TextCheckerClient member functions
@@ -140,7 +140,6 @@ public:
     void ignoreWordInSpellDocument(const String&) override;
     void learnWord(const String&) override;
     void checkSpellingOfString(StringView, int* misspellingLocation, int* misspellingLength) override;
-    String getAutoCorrectSuggestionForMisspelledWord(const String& misspelledWord) override;
     void checkGrammarOfString(StringView, Vector<GrammarDetail>&, int* badGrammarLocation, int* badGrammarLength) override;
 
 #if USE(UNIFIED_TEXT_CHECKING)
@@ -153,9 +152,8 @@ public:
     void getGuessesForWord(const String& word, const String& context, const VisibleSelection& currentSelection, Vector<String>& guesses) override;
     void requestCheckingOfString(TextCheckingRequest&, const VisibleSelection& currentSelection) override;
     bool performTwoStepDrop(DocumentFragment&, const SimpleRange&, bool) final { return false; }
-    bool canShowFontPanel() const final { return false; }
+    bool canShowFontPanel() const  { return false; }
 
-    DOMPasteAccessResponse requestDOMPasteAccess(const String&) final { return DOMPasteAccessResponse::DeniedForGesture; }
 
 protected:
     JGObject m_webPage;

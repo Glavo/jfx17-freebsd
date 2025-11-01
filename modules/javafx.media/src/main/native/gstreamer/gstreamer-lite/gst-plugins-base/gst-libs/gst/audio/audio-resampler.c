@@ -257,7 +257,7 @@ convert_taps_##type##_c (gdouble *tmp_taps, gpointer taps,              \
   for (j = 0; j < n_taps; j++)                                          \
     t[j] = floor (offset + tmp_taps[j] * multiplier / weight);          \
   if (!exact)                                                           \
-    GST_WARNING ("can't find exact taps");                              \
+    GST_DEBUG ("can't find exact taps");                                \
 }
 
 #define MAKE_CONVERT_TAPS_FLOAT_FUNC(type)                              \
@@ -1342,8 +1342,7 @@ gst_audio_resampler_options_set_quality (GstAudioResamplerMethod method,
  *
  * Make a new resampler.
  *
- * Returns: (skip) (transfer full): The new #GstAudioResampler, or
- * %NULL on failure.
+ * Returns: (skip) (transfer full): The new #GstAudioResampler.
  */
 GstAudioResampler *
 gst_audio_resampler_new (GstAudioResamplerMethod method,
@@ -1367,7 +1366,7 @@ gst_audio_resampler_new (GstAudioResamplerMethod method,
 
   audio_resampler_init ();
 
-  resampler = g_slice_new0 (GstAudioResampler);
+  resampler = g_new0 (GstAudioResampler, 1);
   resampler->method = method;
   resampler->flags = flags;
   resampler->format = format;
@@ -1635,7 +1634,7 @@ gst_audio_resampler_free (GstAudioResampler * resampler)
   g_free (resampler->sbuf);
   if (resampler->options)
     gst_structure_free (resampler->options);
-  g_slice_free (GstAudioResampler, resampler);
+  g_free (resampler);
 }
 
 /**
@@ -1662,12 +1661,16 @@ gst_audio_resampler_get_out_frames (GstAudioResampler * resampler,
   GST_LOG ("need %d = %d + %d + %d, avail %d = %d + %d", (gint) need,
       resampler->n_taps, resampler->samp_index, resampler->skip,
       (gint) avail, (gint) resampler->samples_avail, (gint) in_frames);
-  if (avail < need)
+  if (avail < need) {
+    GST_LOG ("avail %d < need %d", (int) avail, (int) need);
     return 0;
+  }
 
   out = (avail - need) * resampler->out_rate;
-  if (out < resampler->samp_phase)
+  if (out < resampler->samp_phase) {
+    GST_LOG ("out %d < samp_phase %d", (int) out, (int) resampler->samp_phase);
     return 0;
+  }
 
   out = ((out - resampler->samp_phase) / resampler->in_rate) + 1;
   GST_LOG ("out %d = ((%d * %d - %d) / %d) + 1", (gint) out,
@@ -1775,7 +1778,10 @@ gst_audio_resampler_resample (GstAudioResampler * resampler,
   resampler->samples_avail = samples_avail += in_frames;
 
   need = resampler->n_taps + resampler->samp_index;
-  if (G_UNLIKELY (samples_avail < need)) {
+  if (G_UNLIKELY (samples_avail < need || out_frames == 0)) {
+    GST_LOG ("not enough samples to start: need %" G_GSIZE_FORMAT ", avail %"
+        G_GSIZE_FORMAT ", out %" G_GSIZE_FORMAT, need, samples_avail,
+        out_frames);
     /* not enough samples to start */
     return;
   }

@@ -26,6 +26,7 @@
 #pragma once
 
 #include <wtf/text/WTFString.h>
+#include <WebCore/NetworkStorageSession.h>
 
 namespace PAL {
 class SessionID;
@@ -37,9 +38,9 @@ class NetworkStorageSession;
 
 class NetworkStorageSessionMap {
 public:
-    static WebCore::NetworkStorageSession* storageSession(const PAL::SessionID&);
+    static WebCore::NetworkStorageSession* storageSession(PAL::SessionID);
     static WebCore::NetworkStorageSession& defaultStorageSession();
     static void switchToNewTestingSession();
-    static void ensureSession(const PAL::SessionID&, const String& identifierBase = String());
-    static void destroySession(const PAL::SessionID&);
+    static void ensureSession(PAL::SessionID, const String& identifierBase = String());
+    static void destroySession(PAL::SessionID);
 };

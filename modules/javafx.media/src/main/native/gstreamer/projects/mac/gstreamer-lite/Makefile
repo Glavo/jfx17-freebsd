@@ -13,28 +13,28 @@ SRCBASE_DIR = $(BASE_DIR)/gstreamer-lite
 OBJBASE_DIR = $(BUILD_DIR)/obj/gstreamer-lite
 
 DIRLIST = gstreamer/gst                     \
-	  gstreamer/libs/gst/base \
+          gstreamer/libs/gst/base \
           gstreamer/libs/gst/controller \
           gst-plugins-base/gst-libs/gst/audio \
-	  gst-plugins-base/gst-libs/gst/interfaces \
-	  gst-plugins-base/gst-libs/gst/video \
-	  gst-plugins-base/gst-libs/gst/pbutils \
+          gst-plugins-base/gst-libs/gst/interfaces \
+          gst-plugins-base/gst-libs/gst/video \
+          gst-plugins-base/gst-libs/gst/pbutils \
           gst-plugins-base/gst-libs/gst/tag \
-	  gst-plugins-base/gst-libs/gst/riff \
-	  gst-plugins-base/gst-libs/gst/fft \
-	  gst-plugins-base/gst-libs/gst/app \
-	  projects/plugins                  \
-	  gstreamer/plugins/elements \
+          gst-plugins-base/gst-libs/gst/riff \
+          gst-plugins-base/gst-libs/gst/fft \
+          gst-plugins-base/gst-libs/gst/app \
+          projects/plugins                  \
+          gstreamer/plugins/elements \
           gst-plugins-base/gst/typefind \
-	  gst-plugins-base/gst/audioconvert \
+          gst-plugins-base/gst/audioconvert \
           gst-plugins-good/gst/audioparsers \
-	  gst-plugins-good/gst/isomp4 \
-	  gst-plugins-good/gst/audiofx \
-	  gst-plugins-good/gst/equalizer \
-	  gst-plugins-good/gst/spectrum \
-	  gst-plugins-good/gst/wavparse \
-	  gst-plugins-bad/gst/aiff \
-	  gst-plugins-base/gst/app \
+          gst-plugins-good/gst/isomp4 \
+          gst-plugins-good/gst/audiofx \
+          gst-plugins-good/gst/equalizer \
+          gst-plugins-good/gst/spectrum \
+          gst-plugins-good/gst/wavparse \
+          gst-plugins-bad/gst/aiff \
+          gst-plugins-base/gst/app \
           gst-plugins-good/sys/osxaudio
 
 TARGET_NAME = lib$(BASE_NAME).dylib
@@ -122,7 +122,6 @@ C_SOURCES = gstreamer/gst/gst.c \
             gstreamer/gst/gstpipeline.c \
             gstreamer/gst/gstplugin.c \
             gstreamer/gst/gstpluginfeature.c \
-            gstreamer/gst/gstpluginloader.c \
             gstreamer/gst/gstpoll.c \
             gstreamer/gst/gstprotection.c \
             gstreamer/gst/gstquark.c \
@@ -167,10 +166,11 @@ C_SOURCES = gstreamer/gst/gst.c \
             gstreamer/libs/gst/base/gsttypefindhelper.c \
             gst-plugins-base/gst-libs/gst/app/gstapp-marshal.c \
             gst-plugins-base/gst-libs/gst/app/gstappsink.c \
+            gst-plugins-base/gst-libs/gst/app/gstapputils.c \
             gst-plugins-base/gst-libs/gst/audio/audio.c \
             gst-plugins-base/gst-libs/gst/audio/audio-channels.c \
             gst-plugins-base/gst-libs/gst/audio/audio-channel-mixer.c \
-	    gst-plugins-base/gst-libs/gst/audio/audio-buffer.c \
+            gst-plugins-base/gst-libs/gst/audio/audio-buffer.c \
             gst-plugins-base/gst-libs/gst/audio/audio-converter.c \
             gst-plugins-base/gst-libs/gst/audio/audio-resampler.c \
             gst-plugins-base/gst-libs/gst/audio/audio-enumtypes.c \
@@ -197,8 +197,6 @@ C_SOURCES = gstreamer/gst/gst.c \
             gst-plugins-base/gst-libs/gst/fft/kiss_fftr_f32.c \
             gst-plugins-base/gst-libs/gst/pbutils/codec-utils.c \
             gst-plugins-base/gst-libs/gst/pbutils/descriptions.c \
-            gst-plugins-base/gst-libs/gst/pbutils/gstdiscoverer.c \
-            gst-plugins-base/gst-libs/gst/pbutils/gstdiscoverer-types.c \
             gst-plugins-base/gst-libs/gst/pbutils/gstpluginsbaseversion.c \
             gst-plugins-base/gst-libs/gst/pbutils/missing-plugins.c \
             gst-plugins-base/gst-libs/gst/pbutils/pbutils.c \
@@ -237,13 +235,19 @@ C_SOURCES = gstreamer/gst/gst.c \
             gst-plugins-base/gst/audioconvert/gstaudioconvert.c \
             gst-plugins-bad/gst/aiff/aiff.c \
             gst-plugins-bad/gst/aiff/aiffparse.c \
+            gst-plugins-bad/gst/aiff/gstaiffelement.c \
             gst-plugins-base/gst/app/gstapp.c \
+            gst-plugins-base/gst/app/gstappsink.c \
             gst-plugins-base/gst/typefind/gsttypefindfunctions.c \
+            gst-plugins-base/gst/typefind/gsttypefindfunctionsplugin.c \
             gst-plugins-good/gst/audioparsers/gstmpegaudioparse.c \
             gst-plugins-good/gst/audioparsers/parsersplugin.c \
             gst-plugins-good/gst/equalizer/gstiirequalizer.c \
             gst-plugins-good/gst/equalizer/gstiirequalizernbands.c \
+            gst-plugins-good/gst/equalizer/gstiirequalizerplugin.c \
             gst-plugins-good/gst/isomp4/isomp4-plugin.c \
+            gst-plugins-good/gst/isomp4/gstisomp4element.c \
+            gst-plugins-good/gst/isomp4/qtdemux-webvtt.c \
             gst-plugins-good/gst/isomp4/qtdemux.c \
             gst-plugins-good/gst/isomp4/gstisoff.c \
             gst-plugins-good/gst/isomp4/qtdemux_dump.c \
@@ -253,7 +257,7 @@ C_SOURCES = gstreamer/gst/gst.c \
             gst-plugins-good/gst/isomp4/qtdemux_types.c \
             gst-plugins-good/gst/spectrum/gstspectrum.c \
             gst-plugins-good/gst/wavparse/gstwavparse.c \
-            gstreamer/plugins/elements/gstelements.c \
+            gstreamer/plugins/elements/gstcoreelementsplugin.c \
             gstreamer/plugins/elements/gstqueue.c \
             gstreamer/plugins/elements/gsttypefindelement.c \
             projects/plugins/gstplugins-lite.c

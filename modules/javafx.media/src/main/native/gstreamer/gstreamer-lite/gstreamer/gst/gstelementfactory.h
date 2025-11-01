@@ -83,12 +83,40 @@ gboolean                gst_element_factory_has_interface       (GstElementFacto
 GST_API
 GstElement*             gst_element_factory_create              (GstElementFactory *factory,
                                                                  const gchar *name) G_GNUC_MALLOC;
+#if !defined(GSTREAMER_LITE) || (defined(GSTREAMER_LITE) && !defined(LINUX))
+GST_API
+GstElement*             gst_element_factory_create_full         (GstElementFactory * factory,
+                                                                 const gchar * first, ...) G_GNUC_MALLOC;
+GST_API
+GstElement *            gst_element_factory_create_valist       (GstElementFactory * factory,
+                                                                 const gchar * first, va_list properties) G_GNUC_MALLOC;
+GST_API
+GstElement *            gst_element_factory_create_with_properties (GstElementFactory * factory,
+                                                                 guint n, const gchar *names[], const GValue values[]) G_GNUC_MALLOC;
+#endif // GSTREAMER_LITE
 GST_API
 GstElement*             gst_element_factory_make                (const gchar *factoryname, const gchar *name) G_GNUC_MALLOC;
 
+#if !defined(GSTREAMER_LITE) || (defined(GSTREAMER_LITE) && !defined(LINUX))
+GST_API
+GstElement*             gst_element_factory_make_full           (const gchar *factoryname,
+                                                                  const gchar *first, ...) G_GNUC_MALLOC;
+GST_API
+GstElement*             gst_element_factory_make_valist         (const gchar *factoryname,
+                                                                 const gchar *first, va_list properties) G_GNUC_MALLOC;
+GST_API
+GstElement*             gst_element_factory_make_with_properties (const gchar *factoryname,
+                                                                 guint n, const gchar *names[], const GValue values[]) G_GNUC_MALLOC;
+#endif // GSTREAMER_LITE
 GST_API
 gboolean                gst_element_register                    (GstPlugin *plugin, const gchar *name,
                                                                  guint rank, GType type);
+
+GST_API
+void                    gst_element_type_set_skip_documentation (GType type);
+
+GST_API
+gboolean                gst_element_factory_get_skip_documentation (GstElementFactory * factory);
 
 /* Factory list functions */
 
@@ -141,6 +169,14 @@ typedef guint64 GstElementFactoryListType;
 #define  GST_ELEMENT_FACTORY_TYPE_DECRYPTOR      ((GstElementFactoryListType)(G_GUINT64_CONSTANT (1) << 10))
 #define  GST_ELEMENT_FACTORY_TYPE_ENCRYPTOR      ((GstElementFactoryListType)(G_GUINT64_CONSTANT (1) << 11))
 #define  GST_ELEMENT_FACTORY_TYPE_HARDWARE      ((GstElementFactoryListType)(G_GUINT64_CONSTANT (1) << 12))
+/**
+ * GST_ELEMENT_FACTORY_TYPE_TIMESTAMPER:
+ *
+ * Timestamp correcting elements
+ *
+ * Since: 1.24
+ */
+#define  GST_ELEMENT_FACTORY_TYPE_TIMESTAMPER    ((GstElementFactoryListType)(G_GUINT64_CONSTANT (1) << 13))
 
 #define  GST_ELEMENT_FACTORY_TYPE_MAX_ELEMENTS   ((GstElementFactoryListType)(G_GUINT64_CONSTANT (1) << 48))
 

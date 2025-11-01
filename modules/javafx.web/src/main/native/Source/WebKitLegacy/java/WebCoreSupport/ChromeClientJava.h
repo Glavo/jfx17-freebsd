@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,23 +31,26 @@
 namespace WebCore {
 
 class ChromeClientJava final : public ChromeClient {
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     ChromeClientJava(const JLObject &webPage);
     void chromeDestroyed() override;
 
     void setWindowRect(const FloatRect&) override;
-    FloatRect windowRect() override;
+    FloatRect windowRect() const override;
 
-    FloatRect pageRect() override;
+    FloatRect pageRect() const override;
 
     void focus() override;
     void unfocus() override;
 
-    bool canTakeFocus(FocusDirection) override;
+    bool canTakeFocus(FocusDirection) const override;
     void takeFocus(FocusDirection) override;
 
     void focusedElementChanged(Element*) override;
     void focusedFrameChanged(Frame*) override;
+        void rootFrameAdded(const LocalFrame&) override;
+        void rootFrameRemoved(const LocalFrame&) override;
 
     // The Frame pointer provides the ChromeClient with context about which
     // Frame wants to create the new Page. Also, the newly created window
@@ -55,37 +58,42 @@ public:
     // created Page has its show method called.
     // The FrameLoadRequest parameter is only for ChromeClient to check if the
     // request could be fulfilled. The ChromeClient should not load the request.
-    Page* createWindow(Frame&, const WindowFeatures&, const NavigationAction&) override;
+    RefPtr<Page> createWindow(LocalFrame&, const String& openedMainFrameName, const WindowFeatures&, const NavigationAction&) override;
     void show() override;
 
-    bool canRunModal() override;
+    bool canRunModal() const override;
     void runModal() override;
 
     void setToolbarsVisible(bool) override;
-    bool toolbarsVisible() override;
+    bool toolbarsVisible() const override;
 
     void setStatusbarVisible(bool) override;
-    bool statusbarVisible() override;
+    bool statusbarVisible() const override;
 
     void setScrollbarsVisible(bool) override;
-    bool scrollbarsVisible() override;
+    bool scrollbarsVisible() const override;
 
     void setMenubarVisible(bool) override;
-    bool menubarVisible() override;
+    bool menubarVisible() const override;
 
     void setResizable(bool) override;
 
     void addMessageToConsole(MessageSource, MessageLevel, const String& message, unsigned lineNumber, unsigned columnNumber, const String& sourceID) override;
     bool canRunBeforeUnloadConfirmPanel() override;
-    bool runBeforeUnloadConfirmPanel(const String& message, Frame&) override;
+    bool runBeforeUnloadConfirmPanel(const String& message, LocalFrame& Frame) override;
 
-    void closeWindowSoon() override;
+    void closeWindow() override;
 
-    void runJavaScriptAlert(Frame&, const String&) override;
-    bool runJavaScriptConfirm(Frame&, const String&) override;
-    bool runJavaScriptPrompt(Frame&, const String& message, const String& defaultValue, String& result) override;
+    void runJavaScriptAlert(LocalFrame&, const String&) override;
+    bool runJavaScriptConfirm(LocalFrame&, const String&) override;
+    bool runJavaScriptPrompt(LocalFrame&, const String& message, const String& defaultValue, String& result) override;
     void setStatusbarText(const String&) override;
     KeyboardUIMode keyboardUIMode() override;
+
+    bool hoverSupportedByPrimaryPointingDevice() const override { return true; }
+    bool hoverSupportedByAnyAvailablePointingDevice() const override { return true; }
+    std::optional<PointerCharacteristics> pointerCharacteristicsOfPrimaryPointingDevice() const override { return PointerCharacteristics::Fine; }
+    OptionSet<PointerCharacteristics> pointerCharacteristicsOfAllAvailablePointingDevices() const override { return PointerCharacteristics::Fine; }
 
     // Methods used by HostWindow.
     //
@@ -98,22 +106,27 @@ public:
 #endif
     IntPoint screenToRootView(const IntPoint&) const override;
     IntRect rootViewToScreen(const IntRect&) const override;
+    IntPoint rootViewToScreen(const IntPoint&) const override;
+    bool canShowDataListSuggestionLabels() const override;
+    RefPtr<DateTimeChooser> createDateTimeChooser(DateTimeChooserClient&) override;
+    RefPtr<DataListSuggestionPicker> createDataListSuggestionPicker(DataListSuggestionsClient&) override;
     IntPoint accessibilityScreenToRootView(const IntPoint&) const final;
     IntRect rootViewToAccessibilityScreen(const IntRect&) const final;
     void intrinsicContentsSizeChanged(const IntSize&) const final;
     PlatformPageClient platformPageClient() const override;
     void setCursor(const Cursor&) override;
     void setCursorHiddenUntilMouseMoves(bool) override;
+    void setTextIndicator(const TextIndicatorData&) const override {}
     // End methods used by HostWindow.
 
-    void contentsSizeChanged(Frame&, const IntSize&) const override;
-    void mouseDidMoveOverElement(const HitTestResult&, unsigned modifierFlags, const String& toolTip, TextDirection) override;
+    void contentsSizeChanged(LocalFrame&, const IntSize&) const override;
+    void mouseDidMoveOverElement(const HitTestResult&, OptionSet<PlatformEventModifier>, const String& toolTip, TextDirection) override;
 
-    void setToolTip(const String&);
+    void setToolTip(const String&) override;
 
-    void print(Frame&) override;
+    void print(LocalFrame&, const StringWithDirection&) override;
 
-    void exceededDatabaseQuota(Frame&, const String& databaseName, DatabaseDetails) override;
+    void exceededDatabaseQuota(LocalFrame&, const String& databaseName, DatabaseDetails) override;
 
     // Callback invoked when the application cache fails to save a cache object
     // because storing it would grow the database file past its defined maximum
@@ -133,10 +146,10 @@ public:
     void reachedApplicationCacheOriginQuota(SecurityOrigin&, int64_t totalSpaceNeeded) override;
 
 #if ENABLE(INPUT_TYPE_COLOR)
-    std::unique_ptr<ColorChooser> createColorChooser(ColorChooserClient&, const Color&) override;
+    RefPtr<ColorChooser> createColorChooser(ColorChooserClient&, const Color&) override;
 #endif
 
-    void runOpenPanel(Frame&, FileChooser&) override;
+    void runOpenPanel(LocalFrame&, FileChooser&) override;
     // Asynchronous request to load an icon for specified filenames.
     void loadIconForFiles(const Vector<String>&, FileIconLoader&) override;
 
@@ -148,13 +161,13 @@ public:
     GraphicsLayerFactory* graphicsLayerFactory() const override { return nullptr; }
 
     // Pass 0 as the GraphicsLayer to detatch the root layer.
-    void attachRootGraphicsLayer(Frame&, GraphicsLayer*) override;
+    void attachRootGraphicsLayer(LocalFrame&, GraphicsLayer*) override;
     // Sets a flag to specify that the next time content is drawn to the window,
     // the changes appear on the screen in synchrony with updates to GraphicsLayers.
     void setNeedsOneShotDrawingSynchronization() override;
     // Sets a flag to specify that the view needs to be updated, so we need
     // to do an eager layout before the drawing.
-    void scheduleRenderingUpdate() override;
+    void triggerRenderingUpdate() override;
     void attachViewOverlayGraphicsLayer(GraphicsLayer*) override;
 
 #if ENABLE(TOUCH_EVENTS)
@@ -170,7 +183,7 @@ public:
 
     RefPtr<Icon> createIconForFiles(const Vector<String>&) override;
     void didFinishLoadingImageForElement(HTMLImageElement&) override;
-
+    void requestCookieConsent(CompletionHandler<void(CookieConsentDecisionResult)>&&) override;
 
 private:
     void repaint(const IntRect&);

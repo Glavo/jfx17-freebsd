@@ -1,6 +1,8 @@
 /* GObject - GLib Type, Object, Parameter and Signal Library
  * Copyright (C) 1997-1999, 2000-2001 Tim Janik and Red Hat, Inc.
  *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
@@ -29,89 +31,6 @@
 #include "gtype-private.h"
 
 
-/**
- * SECTION:generic_values
- * @short_description: A polymorphic type that can hold values of any
- *     other type
- * @see_also: The fundamental types which all support #GValue
- *     operations and thus can be used as a type initializer for
- *     g_value_init() are defined by a separate interface.  See the
- *     [standard values API][gobject-Standard-Parameter-and-Value-Types]
- *     for details
- * @title: Generic values
- *
- * The #GValue structure is basically a variable container that consists
- * of a type identifier and a specific value of that type.
- * The type identifier within a #GValue structure always determines the
- * type of the associated value.
- * To create an undefined #GValue structure, simply create a zero-filled
- * #GValue structure. To initialize the #GValue, use the g_value_init()
- * function. A #GValue cannot be used until it is initialized.
- * The basic type operations (such as freeing and copying) are determined
- * by the #GTypeValueTable associated with the type ID stored in the #GValue.
- * Other #GValue operations (such as converting values between types) are
- * provided by this interface.
- *
- * The code in the example program below demonstrates #GValue's
- * features.
- *
- * |[<!-- language="C" -->
- * #include <glib-object.h>
- *
- * static void
- * int2string (const GValue *src_value,
- *             GValue       *dest_value)
- * {
- *   if (g_value_get_int (src_value) == 42)
- *     g_value_set_static_string (dest_value, "An important number");
- *   else
- *     g_value_set_static_string (dest_value, "What's that?");
- * }
- *
- * int
- * main (int   argc,
- *       char *argv[])
- * {
- *   // GValues must be initialized
- *   GValue a = G_VALUE_INIT;
- *   GValue b = G_VALUE_INIT;
- *   const gchar *message;
- *
- *   // The GValue starts empty
- *   g_assert (!G_VALUE_HOLDS_STRING (&a));
- *
- *   // Put a string in it
- *   g_value_init (&a, G_TYPE_STRING);
- *   g_assert (G_VALUE_HOLDS_STRING (&a));
- *   g_value_set_static_string (&a, "Hello, world!");
- *   g_printf ("%s\n", g_value_get_string (&a));
- *
- *   // Reset it to its pristine state
- *   g_value_unset (&a);
- *
- *   // It can then be reused for another type
- *   g_value_init (&a, G_TYPE_INT);
- *   g_value_set_int (&a, 42);
- *
- *   // Attempt to transform it into a GValue of type STRING
- *   g_value_init (&b, G_TYPE_STRING);
- *
- *   // An INT is transformable to a STRING
- *   g_assert (g_value_type_transformable (G_TYPE_INT, G_TYPE_STRING));
- *
- *   g_value_transform (&a, &b);
- *   g_printf ("%s\n", g_value_get_string (&b));
- *
- *   // Attempt to transform it again using a custom transform function
- *   g_value_register_transform_func (G_TYPE_INT, G_TYPE_STRING, int2string);
- *   g_value_transform (&a, &b);
- *   g_printf ("%s\n", g_value_get_string (&b));
- *   return 0;
- * }
- * ]|
- */
-
-
 /* --- typedefs & structures --- */
 typedef struct {
   GType src_type;
@@ -121,8 +40,8 @@ typedef struct {
 
 
 /* --- prototypes --- */
-static gint transform_entries_cmp (gconstpointer bsearch_node1,
-           gconstpointer bsearch_node2);
+static gint     transform_entries_cmp   (gconstpointer bsearch_node1,
+                                         gconstpointer bsearch_node2);
 
 
 /* --- variables --- */
@@ -141,9 +60,9 @@ _g_value_c_init (void)
   transform_array = g_bsearch_array_create (&transform_bconfig);
 }
 
-static inline void    /* keep this function in sync with gvaluecollector.h and gboxed.c */
+static inline void              /* keep this function in sync with gvaluecollector.h and gboxed.c */
 value_meminit (GValue *value,
-         GType   value_type)
+               GType   value_type)
 {
   value->g_type = value_type;
   memset (value->data, 0, sizeof (value->data));
@@ -163,9 +82,9 @@ g_value_init (GValue *value,
         GType   g_type)
 {
   GTypeValueTable *value_table;
-  /* g_return_val_if_fail (G_TYPE_IS_VALUE (g_type), NULL); be more elaborate below */
+  /* g_return_val_if_fail (G_TYPE_IS_VALUE (g_type), NULL);     be more elaborate below */
   g_return_val_if_fail (value != NULL, NULL);
-  /* g_return_val_if_fail (G_VALUE_TYPE (value) == 0, NULL);  be more elaborate below */
+  /* g_return_val_if_fail (G_VALUE_TYPE (value) == 0, NULL);    be more elaborate below */
 
   value_table = g_type_value_table_peek (g_type);
 
@@ -176,12 +95,12 @@ g_value_init (GValue *value,
       value_table->value_init (value);
     }
   else if (G_VALUE_TYPE (value))
-    g_warning ("%s: cannot initialize GValue with type '%s', the value has already been initialized as '%s'",
-         G_STRLOC,
-         g_type_name (g_type),
-         g_type_name (G_VALUE_TYPE (value)));
+    g_critical ("%s: cannot initialize GValue with type '%s', the value has already been initialized as '%s'",
+               G_STRLOC,
+               g_type_name (g_type),
+               g_type_name (G_VALUE_TYPE (value)));
   else /* !G_TYPE_IS_VALUE (g_type) */
-    g_warning ("%s: cannot initialize GValue with type '%s', %s",
+    g_critical ("%s: cannot initialize GValue with type '%s', %s",
                G_STRLOC,
                g_type_name (g_type),
                value_table ? "this type is abstract with regards to GValue use, use a more specific (derived) type" : "this type has no GTypeValueTable implementation");
@@ -197,7 +116,7 @@ g_value_init (GValue *value,
  */
 void
 g_value_copy (const GValue *src_value,
-        GValue       *dest_value)
+              GValue       *dest_value)
 {
   g_return_if_fail (src_value);
   g_return_if_fail (dest_value);
@@ -212,7 +131,7 @@ g_value_copy (const GValue *src_value,
 
       /* make sure dest_value's value is free()d */
       if (value_table->value_free)
-  value_table->value_free (dest_value);
+        value_table->value_free (dest_value);
 
       /* setup and copy */
       value_meminit (dest_value, dest_type);
@@ -372,7 +291,7 @@ g_value_set_instance (GValue  *value,
   error_msg = value_table->collect_value (value, 1, &cvalue, 0);
   if (error_msg)
     {
-      g_warning ("%s: %s", G_STRLOC, error_msg);
+      g_critical ("%s: %s", G_STRLOC, error_msg);
       g_free (error_msg);
 
       /* we purposely leak the value here, it might not be
@@ -436,7 +355,7 @@ g_value_init_from_instance (GValue  *value,
       error_msg = value_table->collect_value (value, 1, &cvalue, 0);
       if (error_msg)
         {
-          g_warning ("%s: %s", G_STRLOC, error_msg);
+          g_critical ("%s: %s", G_STRLOC, error_msg);
           g_free (error_msg);
 
           /* we purposely leak the value here, it might not be
@@ -446,6 +365,15 @@ g_value_init_from_instance (GValue  *value,
           value_table->value_init (value);
         }
     }
+}
+
+static GType
+transform_lookup_get_parent_type (GType type)
+{
+  if (g_type_fundamental (type) == G_TYPE_INTERFACE)
+    return g_type_interface_instantiatable_prerequisite (type);
+
+  return g_type_parent (type);
 }
 
 static GValueTransform
@@ -459,22 +387,22 @@ transform_func_lookup (GType src_type,
     {
       entry.dest_type = dest_type;
       do
-  {
-    TransformEntry *e;
+        {
+          TransformEntry *e;
 
-    e = g_bsearch_array_lookup (transform_array, &transform_bconfig, &entry);
-    if (e)
-      {
-        /* need to check that there hasn't been a change in value handling */
-        if (g_type_value_table_peek (entry.dest_type) == g_type_value_table_peek (dest_type) &&
-      g_type_value_table_peek (entry.src_type) == g_type_value_table_peek (src_type))
-    return e->func;
-      }
-    entry.dest_type = g_type_parent (entry.dest_type);
-  }
+          e = g_bsearch_array_lookup (transform_array, &transform_bconfig, &entry);
+          if (e)
+            {
+              /* need to check that there hasn't been a change in value handling */
+              if (g_type_value_table_peek (entry.dest_type) == g_type_value_table_peek (dest_type) &&
+                  g_type_value_table_peek (entry.src_type) == g_type_value_table_peek (src_type))
+                return e->func;
+            }
+          entry.dest_type = transform_lookup_get_parent_type (entry.dest_type);
+        }
       while (entry.dest_type);
 
-      entry.src_type = g_type_parent (entry.src_type);
+      entry.src_type = transform_lookup_get_parent_type (entry.src_type);
     }
   while (entry.src_type);
 
@@ -554,7 +482,7 @@ g_value_type_transformable (GType src_type,
   g_return_val_if_fail (dest_type, FALSE);
 
   return (g_value_type_compatible (src_type, dest_type) ||
-    transform_func_lookup (src_type, dest_type) != NULL);
+          transform_func_lookup (src_type, dest_type) != NULL);
 }
 
 /**
@@ -619,15 +547,15 @@ g_value_transform (const GValue *src_value,
       GValueTransform transform = transform_func_lookup (G_VALUE_TYPE (src_value), dest_type);
 
       if (transform)
-  {
-    g_value_unset (dest_value);
+        {
+          g_value_unset (dest_value);
 
-    /* setup and transform */
-    value_meminit (dest_value, dest_type);
-    transform (src_value, dest_value);
+          /* setup and transform */
+          value_meminit (dest_value, dest_type);
+          transform (src_value, dest_value);
 
-    return TRUE;
-  }
+          return TRUE;
+        }
     }
   return FALSE;
 }

@@ -1,6 +1,8 @@
 /* GLIB - Library of useful routines for C programming
  * Copyright (C) 1995-1997  Peter Mattis, Spencer Kimball and Josh MacDonald
  *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
@@ -55,21 +57,14 @@
 #include "gmain.h"
 
 /**
- * SECTION:timers
- * @title: Timers
- * @short_description: keep track of elapsed time
- *
- * #GTimer records a start time, and counts microseconds elapsed since
- * that time. This is done somewhat differently on different platforms,
- * and can be tricky to get exactly right, so #GTimer provides a
- * portable/convenient interface.
- **/
-
-/**
  * GTimer:
  *
- * Opaque datatype that records a start time.
- **/
+ * `GTimer` records a start time, and counts microseconds elapsed since
+ * that time.
+ *
+ * This is done somewhat differently on different platforms, and can be
+ * tricky to get exactly right, so `GTimer` provides a portable/convenient interface.
+ */
 struct _GTimer
 {
   guint64 start;
@@ -79,12 +74,12 @@ struct _GTimer
 };
 
 /**
- * g_timer_new:
+ * g_timer_new: (constructor)
  *
  * Creates a new timer, and starts timing (i.e. g_timer_start() is
  * implicitly called for you).
  *
- * Returns: a new #GTimer.
+ * Returns: (transfer full): a new #GTimer.
  **/
 GTimer*
 g_timer_new (void)
@@ -260,13 +255,16 @@ g_timer_is_active (GTimer *timer)
  * Pauses the current thread for the given number of microseconds.
  *
  * There are 1 million microseconds per second (represented by the
- * #G_USEC_PER_SEC macro). g_usleep() may have limited precision,
+ * %G_USEC_PER_SEC macro). g_usleep() may have limited precision,
  * depending on hardware and operating system; don't rely on the exact
  * length of the sleep.
  */
 void
 g_usleep (gulong microseconds)
 {
+  if G_UNLIKELY (microseconds == 0)
+    return;
+
 #ifdef G_OS_WIN32
   /* Round up to the next millisecond */
   Sleep (microseconds ? (1 + (microseconds - 1) / 1000) : 0);
@@ -294,7 +292,9 @@ G_GNUC_BEGIN_IGNORE_DEPRECATIONS
 void
 g_time_val_add (GTimeVal *time_, glong microseconds)
 {
-  g_return_if_fail (time_->tv_usec >= 0 && time_->tv_usec < G_USEC_PER_SEC);
+  g_return_if_fail (time_ != NULL &&
+                    time_->tv_usec >= 0 &&
+                    time_->tv_usec < G_USEC_PER_SEC);
 
   if (microseconds >= 0)
     {
@@ -603,7 +603,9 @@ g_time_val_to_iso8601 (GTimeVal *time_)
 #endif
   time_t secs;
 
-  g_return_val_if_fail (time_->tv_usec >= 0 && time_->tv_usec < G_USEC_PER_SEC, NULL);
+  g_return_val_if_fail (time_ != NULL &&
+                        time_->tv_usec >= 0 &&
+                        time_->tv_usec < G_USEC_PER_SEC, NULL);
 
   secs = time_->tv_sec;
 #ifdef _WIN32

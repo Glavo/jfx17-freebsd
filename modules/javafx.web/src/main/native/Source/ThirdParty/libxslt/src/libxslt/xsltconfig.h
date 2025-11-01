@@ -20,28 +20,28 @@ extern "C" {
  *
  * the version string like "1.2.3"
  */
-#define LIBXSLT_DOTTED_VERSION "1.1.34"
+#define LIBXSLT_DOTTED_VERSION "1.1.44"
 
 /**
  * LIBXSLT_VERSION:
  *
  * the version number: 1.2.3 value is 10203
  */
-#define LIBXSLT_VERSION 10134
+#define LIBXSLT_VERSION 10144
 
 /**
  * LIBXSLT_VERSION_STRING:
  *
  * the version number string, 1.2.3 value is "10203"
  */
-#define LIBXSLT_VERSION_STRING "10134"
+#define LIBXSLT_VERSION_STRING "10144"
 
 /**
  * LIBXSLT_VERSION_EXTRA:
  *
- * extra version information, used to show a CVS compilation
+ * extra version information, used to show a Git commit description
  */
-#define LIBXSLT_VERSION_EXTRA ""
+#define    LIBXSLT_VERSION_EXTRA ""
 
 /**
  * WITH_XSLT_DEBUG:
@@ -52,26 +52,6 @@ extern "C" {
  */
 #if 0
 #define WITH_XSLT_DEBUG
-#endif
-
-#if 0
-/**
- * DEBUG_MEMORY:
- *
- * should be activated only when debugging libxslt. It replaces the
- * allocator with a collect and debug shell to the libc allocator.
- * Use configure --with-mem-debug to activate it on both library
- */
-#define DEBUG_MEMORY
-
-/**
- * DEBUG_MEMORY_LOCATION:
- *
- * should be activated only when debugging libxslt.
- * DEBUG_MEMORY_LOCATION should be activated only when libxml has
- * been configured with --with-debug-mem too
- */
-#define DEBUG_MEMORY_LOCATION
 #endif
 
 /**
@@ -86,15 +66,14 @@ extern "C" {
 #define XSLT_NEED_TRIO
 #endif
 #ifdef __VMS
-#define HAVE_MATH_H 1
 #define HAVE_SYS_STAT_H 1
 #ifndef XSLT_NEED_TRIO
 #define XSLT_NEED_TRIO
 #endif
 #endif
 
-#ifdef  XSLT_NEED_TRIO
-#define TRIO_REPLACE_STDIO
+#ifdef    XSLT_NEED_TRIO
+#define    TRIO_REPLACE_STDIO
 #endif
 
 /**
@@ -104,7 +83,7 @@ extern "C" {
  * is insignifiant.
  * On by default unless --without-debugger is passed to configure
  */
-#if 0
+#if 1
 #ifndef WITH_DEBUGGER
 #define WITH_DEBUGGER
 #endif
@@ -117,7 +96,7 @@ extern "C" {
  * is insignifiant.
  * On by default unless --without-profiler is passed to configure
  */
-#if 0
+#if 1
 #ifndef WITH_PROFILER
 #define WITH_PROFILER
 #endif
@@ -133,20 +112,7 @@ extern "C" {
 #ifndef WITH_MODULES
 #define WITH_MODULES
 #endif
-#define LIBXSLT_DEFAULT_PLUGINS_PATH() "/usr/local/lib/libxslt-plugins"
-#endif
-
-/**
- * ATTRIBUTE_UNUSED:
- *
- * This macro is used to flag unused function parameters to GCC
- */
-#ifdef __GNUC__
-#ifndef ATTRIBUTE_UNUSED
-#define ATTRIBUTE_UNUSED __attribute__((unused))
-#endif
-#else
-#define ATTRIBUTE_UNUSED
+#define LIBXSLT_DEFAULT_PLUGINS_PATH() "NULL"
 #endif
 
 /**
