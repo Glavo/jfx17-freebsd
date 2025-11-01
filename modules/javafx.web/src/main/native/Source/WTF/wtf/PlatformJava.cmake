@@ -95,7 +95,6 @@ elseif (UNIX)
         generic/MemoryFootprintGeneric.cpp
         unix/LanguageUnix.cpp
         unix/MemoryPressureHandlerUnix.cpp
-        linux/RealTimeThreads.cpp
     )
     list(APPEND WTF_LIBRARIES rt)
 elseif (WIN32)
@@ -124,6 +123,12 @@ elseif (WIN32)
     list(APPEND WTF_LIBRARIES
         DbgHelp
         winmm
+    )
+endif ()
+
+if (LINUX)
+    list(APPEND WTF_SOURCES
+        linux/RealTimeThreads.cpp
     )
 endif ()
 
