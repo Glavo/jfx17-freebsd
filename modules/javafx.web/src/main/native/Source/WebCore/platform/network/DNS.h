@@ -42,10 +42,6 @@
 #include <sys/socket.h>
 #endif
 
-#include <wtf/Forward.h>
-#include <wtf/Optional.h>
-#include <wtf/Variant.h>
-
 namespace WebCore {
 
 class IPAddress {
