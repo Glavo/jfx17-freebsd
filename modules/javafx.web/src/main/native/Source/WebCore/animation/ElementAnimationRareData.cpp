@@ -28,10 +28,13 @@
 
 #include "CSSAnimation.h"
 #include "CSSTransition.h"
+#include "KeyframeEffect.h"
 #include "KeyframeEffectStack.h"
 #include "RenderStyle.h"
+#include "ScriptExecutionContext.h"
 
 namespace WebCore {
+DEFINE_ALLOCATOR_WITH_HEAP_IDENTIFIER(ElementAnimationRareData);
 
 ElementAnimationRareData::ElementAnimationRareData()
 {
@@ -50,7 +53,25 @@ KeyframeEffectStack& ElementAnimationRareData::ensureKeyframeEffectStack()
 
 void ElementAnimationRareData::setAnimationsCreatedByMarkup(CSSAnimationCollection&& animations)
 {
+    if (m_keyframeEffectStack) {
+        for (auto& animation : m_animationsCreatedByMarkup) {
+            if (RefPtr keyframeEffect = dynamicDowncast<KeyframeEffect>(animation->effect()))
+                m_keyframeEffectStack->removeEffect(*keyframeEffect);
+        }
+    }
+
     m_animationsCreatedByMarkup = WTFMove(animations);
+}
+
+void ElementAnimationRareData::setLastStyleChangeEventStyle(std::unique_ptr<const RenderStyle>&& style)
+{
+    if (m_keyframeEffectStack && m_lastStyleChangeEventStyle != style) {
+        auto previousStyleChangeEventStyle = std::exchange(m_lastStyleChangeEventStyle, WTFMove(style));
+        m_keyframeEffectStack->lastStyleChangeEventStyleDidChange(previousStyleChangeEventStyle.get(), m_lastStyleChangeEventStyle.get());
+        return;
+    }
+
+    m_lastStyleChangeEventStyle = WTFMove(style);
 }
 
 } // namespace WebCore

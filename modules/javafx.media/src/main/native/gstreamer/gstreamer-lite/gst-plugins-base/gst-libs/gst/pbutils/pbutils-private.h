@@ -18,6 +18,7 @@
  * Boston, MA 02110-1301, USA.
  */
 
+#ifndef GSTREAMER_LITE
 #include "gstdiscoverer.h"
 
 struct _GstDiscovererStreamInfo {
@@ -31,12 +32,14 @@ struct _GstDiscovererStreamInfo {
   GstToc                *toc;
   gchar                 *stream_id;
   GstStructure          *misc;
+  gint                  stream_number;
 };
 
 struct _GstDiscovererContainerInfo {
   GstDiscovererStreamInfo parent;
 
   GList               *streams;
+  GstTagList          *tags;
 };
 
 struct _GstDiscovererAudioInfo {
@@ -96,9 +99,12 @@ struct _GstDiscovererInfo {
   gboolean seekable;
   GPtrArray *missing_elements_details;
 
+  gint stream_count;
+
   gchar *cachefile;
   gpointer from_cache;
 };
+#endif // GSTREAMER_LITE
 
 /* missing-plugins.c */
 G_GNUC_INTERNAL

@@ -130,7 +130,7 @@ public class NewSceneSizeTest {
                 }
             });
         }
-        latch.await(5, TimeUnit.SECONDS);
+        latch.await(30, TimeUnit.SECONDS);
         Thread.sleep(200);
         for (int i = 0; i < nTries; i++) {
             Assert.assertEquals("Wrong scene " + i + " width", w[i],

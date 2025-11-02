@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -291,8 +291,10 @@ ext.MODULESOURCEPATH = "modulesourcepath.args"
 // this build running on a Mac, Windows, or Linux machine? 32 or 64 bit?
 ext.OS_NAME = System.getProperty("os.name").toLowerCase()
 ext.OS_ARCH = System.getProperty("os.arch")
+ext.ARCH_NAME = "x64"
 ext.IS_64 = OS_ARCH.toLowerCase().contains("64")
 ext.IS_AARCH64 = OS_ARCH.toLowerCase().contains("aarch64")
+ext.IS_LOONGARCH64 = OS_ARCH.toLowerCase().contains("loongarch64")
 ext.IS_MAC = OS_NAME.contains("mac") || OS_NAME.contains("darwin")
 ext.IS_WINDOWS = OS_NAME.contains("windows")
 ext.IS_LINUX = OS_NAME.contains("linux")
@@ -310,12 +312,24 @@ if (IS_WINDOWS && OS_ARCH != "x86" && OS_ARCH != "amd64") {
     fail("Unknown and unsupported build architecture: $OS_ARCH")
 } else if (IS_MAC && OS_ARCH != "x86_64" && OS_ARCH != "aarch64") {
     fail("Unknown and unsupported build architecture: $OS_ARCH")
-} else if (IS_LINUX && OS_ARCH != "i386" && OS_ARCH != "amd64" && OS_ARCH != "aarch64") {
+} else if (IS_LINUX && OS_ARCH != "i386" && OS_ARCH != "amd64" && !IS_AARCH64 && !IS_LOONGARCH64) {
     fail("Unknown and unsupported build architecture: $OS_ARCH")
 }
 
 // Configure make command
 ext.MAKE_CMD = IS_BSD ? "gmake" : "make"
+
+if (IS_64) {
+    if (IS_AARCH64) {
+        ARCH_NAME = "aarch64"
+    } else if (IS_LOONGARCH64) {
+        ARCH_NAME = "loongarch64"
+    } else {
+        ARCH_NAME = "x64"
+    }
+} else {
+    ARCH_NAME = "x32"
+}
 
 // Get the JDK_HOME automatically based on the version of Java used to execute gradle. Or, if specified,
 // use a user supplied JDK_HOME, STUB_RUNTIME, JAVAC, all of which may be specified
@@ -349,11 +363,11 @@ def javaVersionInfo = parseJavaVersion(javaRuntimeVersion)
 defineProperty("javaVersion", javaVersionInfo[0])
 defineProperty("javaBuildNumber", javaVersionInfo[1])
 
-defineProperty("libAVRepositoryURL", "https://libav.org/releases/")
+defineProperty("libAVRepositoryURL", "https://github.com/libav/libav/archive")
 defineProperty("FFmpegRepositoryURL", "https://www.ffmpeg.org/releases/")
 defineProperty("icuRepositoryURL", "https://github.com/unicode-org/icu/releases/")
 
-defineProperty("icuVersion", "68.2")
+defineProperty("icuVersion", "73.1")
 
 loadProperties("$projectDir/build.properties")
 
@@ -412,7 +426,9 @@ if (IS_STATIC_BUILD && IS_COMPILE_MEDIA) {
 }
 
 // By default, target architecture = host architecture, but we allow different ones.
-defineProperty("TARGET_ARCH", OS_ARCH)
+// On Apple Silicon, default architecture must be "arm64", because clang does not accept
+// aarch64 as -arch parameter.
+defineProperty("TARGET_ARCH", (IS_MAC && IS_AARCH64) ? "arm64" : OS_ARCH)
 
 // BUILD_TOOLS_DOWNLOAD_SCRIPT specifies a path of a gradle script which downloads
 // required build tools.
@@ -465,6 +481,7 @@ ext.IS_WORKER_DEBUG = Boolean.parseBoolean(WORKER_DEBUG);
 defineProperty("CONF", "Debug")
 ext.IS_DEBUG_JAVA = CONF == "Debug" || CONF == "DebugNative"
 ext.IS_DEBUG_NATIVE = CONF == "DebugNative"
+ext.IS_RELEASE = !ext.IS_DEBUG_JAVA
 
 // Specifies whether to enable the Maven publishing tasks
 defineProperty("MAVEN_PUBLISH", "false")
@@ -523,6 +540,9 @@ defineProperty("HUDSON_BUILD_NUMBER","0000")
 defineProperty("PROMOTED_BUILD_NUMBER", "0")
 defineProperty("MILESTONE_FCS", "false")
 ext.IS_MILESTONE_FCS = Boolean.parseBoolean(MILESTONE_FCS)
+
+// The following property used to define WebView Browser Version
+defineProperty("WEBVIEW_VERSION", "18.4")
 
 // The following properties define the product name for Oracle JDK and OpenJDK
 // for VersionInfo and the DLL manifest.
@@ -1145,7 +1165,7 @@ if (COMPILE_TARGETS == "all") {
     COMPILE_FLAGS_FILES = tmp.collect { "buildSrc/${it}.gradle"}.join(",")
     COMPILE_TARGETS = tmp.collect { "${it.toLowerCase()}"}.join(",")
 } else {
-    COMPILE_FLAGS_FILES.split(",").each {    
+    COMPILE_FLAGS_FILES.split(",").each {
         logger.info("Applying COMPILE_FLAGS_FILE '$it'")
         apply from: it
     }
@@ -1950,7 +1970,18 @@ allprojects {
     // By default all of our projects require junit for testing so we can just
     // setup this dependency here.
     dependencies {
-        testImplementation group: "junit", name: "junit", version: "4.8.2"
+        testImplementation group: "junit", name: "junit", version: "4.13.2"
+        testImplementation group: "org.hamcrest", name: "hamcrest-core", version: "1.3"
+        testImplementation group: "org.junit.jupiter", name: "junit-jupiter", version: "5.8.1"
+        testImplementation group: "org.junit.jupiter", name: "junit-jupiter-api", version: "5.8.1"
+        testImplementation group: "org.opentest4j", name: "opentest4j", version: "1.2.0"
+        testRuntimeOnly group: "org.apiguardian", name: "apiguardian-api", version: "1.1.2"
+        testRuntimeOnly group: "org.junit.jupiter", name: "junit-jupiter-engine", version: "5.8.1"
+        testRuntimeOnly group: "org.junit.jupiter", name: "junit-jupiter-params", version: "5.8.1"
+        testRuntimeOnly group: "org.junit.platform", name: "junit-platform-commons", version: "1.8.1"
+        testRuntimeOnly group: "org.junit.platform", name: "junit-platform-engine", version: "1.8.1"
+        testRuntimeOnly group: "org.junit.vintage", name: "junit-vintage-engine", version: "5.8.1"
+
         if (BUILD_CLOSED && DO_JCOV)  {
             testImplementation name: "jcov"
         }
@@ -1965,6 +1996,8 @@ allprojects {
     // Java 7 but when we switch to 8 this will be needed, and probably again when
     // we start building with Java 9.
     test {
+        useJUnitPlatform();
+
         executable = JAVA;
         enableAssertions = true;
         testLogging.exceptionFormat = "full";
@@ -1984,6 +2017,7 @@ allprojects {
         }
 
         systemProperty 'unstable.test', IS_UNSTABLE_TEST
+        systemProperty 'web.test', !IS_BSD
     }
 
     compileTestJava {
@@ -2039,7 +2073,6 @@ project(":base") {
     }
 
     dependencies {
-        testImplementation group: "junit", name: "junit", version: "4.8.2"
         testImplementation sourceSets.main.output
         testImplementation sourceSets.shims.output
     }
@@ -2115,8 +2148,6 @@ project(":graphics") {
     }
 
     dependencies {
-        stubImplementation group: "junit", name: "junit", version: "4.8.2"
-
         antlr group: "org.antlr", name: "antlr4", version: "4.7.2", classifier: "complete"
         testImplementation project(":base").sourceSets.test.output
         implementation project(':base')
@@ -2790,11 +2821,12 @@ project(":media") {
 
     dependencies {
         if (IS_BUILD_LIBAV_STUBS) {
-            media name: "libav-9.14", ext: "tar.gz"
-            media name: "libav-11.4", ext: "tar.gz"
-            media name: "libav-12.1", ext: "tar.gz"
+            media name: "v9.14", ext: "tar.gz"
+            media name: "v11.4", ext: "tar.gz"
+            media name: "v12.1", ext: "tar.gz"
             media name: "ffmpeg-3.3.3", ext: "tar.gz"
             media name: "ffmpeg-4.0.2", ext: "tar.gz"
+            media name: "ffmpeg-5.1.2", ext: "tar.gz"
         }
         implementation project(":base")
         implementation project(":graphics")
@@ -2876,7 +2908,7 @@ project(":media") {
                     args("JAVA_HOME=${JDK_HOME}", "GENERATED_HEADERS_DIR=${generatedHeadersDir}",
                          "OUTPUT_DIR=${nativeOutputDir}", "BUILD_TYPE=${buildType}", "BASE_NAME=jfxmedia",
                          "COMPILE_PARFAIT=${compileParfait}",
-                         IS_64 ? IS_AARCH64 ? "ARCH=aarch64" : "ARCH=x64" : "ARCH=x32",
+                         "ARCH=${ARCH_NAME}",
                         "CC=${mediaProperties.compiler}", "LINKER=${mediaProperties.linker}")
 
                     if (t.name == "win") {
@@ -2903,7 +2935,7 @@ project(":media") {
                     exec {
                         commandLine (MAKE_CMD, "${makeJobsFlag}", "-C", "${nativeSrcDir}/gstreamer/projects/${projectDir}/gstreamer-lite")
                         args("OUTPUT_DIR=${nativeOutputDir}", "BUILD_TYPE=${buildType}", "BASE_NAME=gstreamer-lite",
-                             IS_64 ? IS_AARCH64 ? "ARCH=aarch64" : "ARCH=x64" : "ARCH=x32", "CC=${mediaProperties.compiler}",
+                             "ARCH=${ARCH_NAME}", "CC=${mediaProperties.compiler}",
                              "AR=${mediaProperties.ar}", "LINKER=${mediaProperties.linker}")
 
                         if (t.name == "win") {
@@ -2921,7 +2953,7 @@ project(":media") {
                     exec {
                         commandLine (MAKE_CMD, "${makeJobsFlag}", "-C", "${nativeSrcDir}/gstreamer/projects/${projectDir}/fxplugins")
                         args("OUTPUT_DIR=${nativeOutputDir}", "BUILD_TYPE=${buildType}", "BASE_NAME=fxplugins",
-                             IS_64 ? IS_AARCH64 ? "ARCH=aarch64" : "ARCH=x64" : "ARCH=x32",
+                             "ARCH=${ARCH_NAME}",
                              "CC=${mediaProperties.compiler}", "AR=${mediaProperties.ar}", "LINKER=${mediaProperties.linker}")
 
                         if (t.name == "win") {
@@ -2943,10 +2975,12 @@ project(":media") {
                 def copyLibAVStubs = {String fromDir, String toDir ->
                     FileCollection config = files("config.h")
                     FileCollection libavcodec = files("avcodec.h", "avfft.h", "dxva2.h", "vaapi.h", "vda.h",
-                                                      "vdpau.h", "version.h", "xvmc.h", "old_codec_ids.h")
+                                                      "vdpau.h", "version.h", "xvmc.h", "old_codec_ids.h",
+                                                      "codec.h", "codec_desc.h", "codec_par.h", "codec_id.h",
+                                                      "defs.h", "packet.h", "version_major.h")
                     FileCollection libavdevice = files("avdevice.h", "version.h")
                     FileCollection libavfilter = files("avfiltergraph.h", "avfilter.h", "buffersink.h", "buffersrc.h", "version.h");
-                    FileCollection libavformat = files("avformat.h", "avio.h", "version.h")
+                    FileCollection libavformat = files("avformat.h", "avio.h", "version.h", "version_major.h")
                     FileCollection libavresample = files("avresample.h", "version.h")
                     FileCollection libavutil = files("adler32.h", "blowfish.h", "error.h", "log.h", "pixfmt.h",
                                                      "aes.h", "bswap.h", "eval.h", "lzo.h", "random_seed.h",
@@ -2959,7 +2993,7 @@ project(":media") {
                                                      "dict.h", "lfg.h", "pixdesc.h", "intfloat_readwrite.h", "old_pix_fmts.h", "audioconvert.h",
                                                      "cpu.h", "hwcontext.h")
                     FileCollection libavutil_x86 = files("cpu.h") // Use cpu.h from x86 instead of libavutil root if exist
-                    FileCollection libswscale = files("swscale.h", "version.h")
+                    FileCollection libswscale = files("swscale.h", "version.h", "version_major.h")
 
                     def copyLibAVFiles = {FileCollection files, String fDir, String tDir ->
                         File dir = file(tDir)
@@ -3006,7 +3040,7 @@ project(":media") {
                         libav.versions.each { version ->
                             def libavDir = "${libav.basedir}/libav-${version}"
                             for (File f : configurations.media.files) {
-                                if (f.name.startsWith("libav-${version}")) {
+                                if (f.name.startsWith("v${version}")) {
                                     File dir = file(libavDir)
                                     dir.mkdirs()
                                     def libavTar = "${libav.basedir}/libav-${version}.tar"
@@ -3067,7 +3101,7 @@ project(":media") {
                         libav.versions.each { version ->
                             def libavDir = "${libav.basedir}/libav-${version}"
                             for (File f : configurations.media.files) {
-                                if (f.name.startsWith("libav-${version}")) {
+                                if (f.name.startsWith("v${version}")) {
                                     File dir = file(libavDir)
                                     dir.mkdirs()
                                     def libavTar = "${libav.basedir}/libav-${version}.tar"
@@ -3139,8 +3173,8 @@ project(":media") {
                     doLast {
                         project.ext.libav = [:]
                         project.ext.libav.basedir = "${buildDir}/native/linux/ffmpeg"
-                        project.ext.libav.versions = [ "3.3.3", "4.0.2" ]
-                        project.ext.libav.versionmap = [ "3.3.3" : "57", "4.0.2" : "58" ]
+                        project.ext.libav.versions = [ "3.3.3", "4.0.2", "5.1.2" ]
+                        project.ext.libav.versionmap = [ "3.3.3" : "57", "4.0.2" : "58", "5.1.2" : "59" ]
 
                         libav.versions.each { version ->
                             def libavDir = "${libav.basedir}/ffmpeg-${version}"
@@ -3220,7 +3254,7 @@ project(":media") {
                             project.ext.libav.libavffmpeg.versions = [ "56" ]
                             project.ext.libav.ffmpeg = [:]
                             project.ext.libav.ffmpeg.basedir = "${buildDir}/native/linux/ffmpeg/ffmpeg"
-                            project.ext.libav.ffmpeg.versions = [ "57", "58" ]
+                            project.ext.libav.ffmpeg.versions = [ "57", "58", "59" ]
 
                             project.ext.libav.versions.each { version ->
                                 def libavDir = "${project.ext.libav.basedir}-${version}"
@@ -3231,7 +3265,7 @@ project(":media") {
                                         args("CC=${mediaProperties.compiler}", "LINKER=${mediaProperties.linker}",
                                              "OUTPUT_DIR=${nativeOutputDir}", "BUILD_TYPE=${buildType}",
                                              "BASE_NAME=avplugin", "VERSION=${version}", "LIBAV_DIR=${libavDir}",
-                                             "SUFFIX=", IS_64 ? IS_AARCH64 ? "ARCH=aarch64" : "ARCH=x64" : "ARCH=x32",
+                                             "SUFFIX=", "ARCH=${ARCH_NAME}",
                                              "STATIC=${IS_STATIC_BUILD}")
                                     }
                                 }
@@ -3247,7 +3281,7 @@ project(":media") {
                                              "OUTPUT_DIR=${nativeOutputDir}", "BUILD_TYPE=${buildType}",
                                              "BASE_NAME=avplugin", "VERSION=${version}", "LIBAV_DIR=${libavDir}",
                                              "SUFFIX=-ffmpeg",
-                                             IS_64 ? IS_AARCH64 ? "ARCH=aarch64" : "ARCH=x64" : "ARCH=x32")
+                                             "ARCH=${ARCH_NAME}")
                                     }
                                 }
                             }
@@ -3262,7 +3296,7 @@ project(":media") {
                                              "OUTPUT_DIR=${nativeOutputDir}", "BUILD_TYPE=${buildType}",
                                              "BASE_NAME=avplugin", "VERSION=${version}", "LIBAV_DIR=${libavDir}",
                                              "SUFFIX=-ffmpeg",
-                                             IS_64 ? IS_AARCH64 ? "ARCH=aarch64" : "ARCH=x64" : "ARCH=x32")
+                                             "ARCH=${ARCH_NAME}")
                                     }
                                 }
                             }
@@ -3272,7 +3306,7 @@ project(":media") {
                                 commandLine (MAKE_CMD, "${makeJobsFlag}", "-C", "${nativeSrcDir}/gstreamer/projects/linux/avplugin")
                                 args("CC=${mediaProperties.compiler}", "LINKER=${mediaProperties.linker}",
                                      "OUTPUT_DIR=${nativeOutputDir}", "BUILD_TYPE=${buildType}",
-                                     "BASE_NAME=avplugin", IS_64 ? IS_AARCH64 ? "ARCH=aarch64" : "ARCH=x64" : "ARCH=x32")
+                                     "BASE_NAME=avplugin", "ARCH=${ARCH_NAME}")
                             }
                         }
                     }
@@ -3401,7 +3435,8 @@ project(":web") {
 
     dependencies {
         if (IS_COMPILE_WEBKIT) {
-            icu name: "icu4c-${icuVersion}-data-bin-l", ext: "zip"
+            def icuFileVersion = icuVersion.replaceAll('\\.', '_')
+            icu name: "icu4c-${icuFileVersion}-data-bin-l", ext: "zip"
         }
         implementation project(":base")
         implementation project(":graphics")
@@ -3489,7 +3524,7 @@ project(":web") {
             enabled = IS_COMPILE_WEBKIT
 
             from configurations.icu.files
-            into "$webkitOutputDir/$webkitConfig/icu/data"
+            into "$webkitOutputDir/icu/data"
         }
 
         def compileNativeTask = task("compileNative${t.capital}", dependsOn: [compileJava, getICUFile]) {
@@ -3513,6 +3548,27 @@ project(":web") {
                     if (t.name == "win") {
                         // To enable ninja build on Windows
                         environment(WINDOWS_NATIVE_COMPILE_ENVIRONMENT)
+                        // Ensure the Clang environment is set up properly
+                        // Set the Clang compiler and linker as webkit has dropped MSVC compiler support
+                        def clangCompiler = "clang-cl.exe"  // Set to the path of clang-cl
+                        def msvcLinker = "link.exe"  // Set to the path of clang-cl
+                        // Define the flags for Clang compilation and MSVC linking
+                        def cFlags = "-shared"
+                        def lFlags = "-shared"
+                        if (!IS_64) {
+                            cFlags += " /clang:-m32"
+                            lFlags += " /machine:x86"
+                        }
+                        // Pass Clang-specific flags
+                        cmakeArgs = "$cmakeArgs -DCMAKE_C_FLAGS='${cFlags}' -DCMAKE_CXX_FLAGS='${cFlags}'"
+                        cmakeArgs = "$cmakeArgs -DCMAKE_SHARED_LINKER_FLAGS='${lFlags}'"
+
+                        // Specify Clang-CL as the compiler for C and C++
+                        cmakeArgs = "$cmakeArgs -DCMAKE_C_COMPILER=${clangCompiler} -DCMAKE_CXX_COMPILER=${clangCompiler}"
+                        // pass the MSVC bin dir for icu Third party lib
+                        cmakeArgs = "$cmakeArgs -DCMAKE_LINKER=${msvcLinker} -DMSVC_BIN_DIR='${WIN.MSVC_BIN_DIR}'"
+
+
                     } else if (t.name == "mac") {
                         cmakeArgs = " $cmakeArgs -DCMAKE_OSX_DEPLOYMENT_TARGET=$MACOSX_MIN_VERSION -DCMAKE_OSX_SYSROOT=$MACOSX_SDK_PATH"
                     } else if (t.name == "linux") {
@@ -3520,6 +3576,8 @@ project(":web") {
                         if (IS_64) {
                             if (IS_AARCH64) {
                                 cmakeArgs = "$cmakeArgs -DCMAKE_SYSTEM_PROCESSOR=aarch64"
+                            } else if (IS_LOONGARCH64) {
+                                cmakeArgs = "$cmakeArgs -DCMAKE_SYSTEM_PROCESSOR=loongarch64"
                             } else {
                                 cmakeArgs = "$cmakeArgs -DCMAKE_SYSTEM_PROCESSOR=x86_64"
                             }
@@ -3564,6 +3622,7 @@ project(":web") {
                     } else {
                         targetCpuBitDepthSwitch = "--32-bit"
                     }
+                    cmakeArgs += " -DWEBVIEW_BROWSER_VERSION=${WEBVIEW_VERSION}"
                     cmakeArgs += " -DJAVAFX_RELEASE_VERSION=${jfxReleaseMajorVersion}"
                     commandLine("perl", "$projectDir/src/main/native/Tools/Scripts/build-webkit",
                         "--java", "--icu-unicode", targetCpuBitDepthSwitch,
@@ -3577,7 +3636,7 @@ project(":web") {
         def copyDumpTreeNativeTask = task("copyDumpTreeNative${t.capital}", type: Copy,
                 dependsOn: [ compileNativeTask]) {
             def library = rootProject.ext[t.upper].library
-            from "$webkitOutputDir/$webkitConfig/$dllDir/${library('DumpRenderTreeJava')}"
+            from "$webkitOutputDir/$dllDir/${library('DumpRenderTreeJava')}"
             into "$buildDir/test/${t.name}"
         }
 
@@ -3585,7 +3644,7 @@ project(":web") {
                 dependsOn: [compileNativeTask, copyDumpTreeNativeTask]) {
             enabled =  (IS_COMPILE_WEBKIT)
             def library = rootProject.ext[t.upper].library
-            from "$webkitOutputDir/$webkitConfig/$dllDir/${library('jfxwebkit')}"
+            from "$webkitOutputDir/$dllDir/${library('jfxwebkit')}"
             into "$buildDir/libs/${t.name}"
         }
 
@@ -3596,7 +3655,7 @@ project(":web") {
                 if (webkitProperties.rcFlags) {
                     rcParams.addAll(webkitProperties.rcFlags)
                 }
-                output(file("$webkitOutputDir/$webkitConfig/WebCore/obj"))
+                output(file("$webkitOutputDir/WebCore/obj"))
             }
             compileNativeTask.dependsOn rcTask
         }
@@ -4969,6 +5028,9 @@ compileTargets { t ->
 
         def library = targetProperties.library
 
+        def doStrip = targetProperties.containsKey('strip') && IS_RELEASE
+        def strip = doStrip ? targetProperties.strip : null
+        def stripArgs = doStrip ? targetProperties.stripArgs : null
         def useLipo = targetProperties.containsKey('useLipo') ? targetProperties.useLipo : false
         def modLibDest = targetProperties.modLibDest
         def moduleNativeDirName = "${platformPrefix}module-$modLibDest"
@@ -5017,7 +5079,8 @@ compileTargets { t ->
             group = "Basic"
             description = "copies javafx.graphics native libraries"
 
-            into "${graphicsProject.buildDir}/${moduleNativeDirName}"
+            def destDirName = "${graphicsProject.buildDir}/${moduleNativeDirName}"
+            into destDirName
 
             from("${graphicsProject.buildDir}/libs/jsl-decora/${t.name}/${library(targetProperties.decora.lib)}")
             def libs = ['font', 'prism', 'prismSW', 'glass', 'iio']
@@ -5043,13 +5106,32 @@ compileTargets { t ->
                     from ("$winsdklib");
                 }
             }
+
+            if (doStrip) {
+                doLast {
+                    def inputFiles = fileTree(dir: destDirName)
+                    inputFiles.include("*.dll")
+                    inputFiles.include("*.dylib")
+                    inputFiles.include("*.so")
+                    // FIXME: if we ever need to strip on Windows platforms, we must
+                    // exclude the Microsoft DLLs (VS2017DLLNames and WinSDKDLLNames)
+
+                    inputFiles.each { file ->
+                        exec {
+                            def cmd = [ strip, stripArgs, file ].flatten()
+                            commandLine(cmd)
+                        }
+                    }
+                }
+            }
         }
 
         def buildModuleMediaTask = task("buildModuleMedia$t.capital", type: Copy, dependsOn: [mediaProject.assemble, prepOpenJfxStubs]) {
             group = "Basic"
             description = "copies javafx.media native libraries"
 
-            into "${mediaProject.buildDir}/${moduleNativeDirName}"
+            def destDirName = "${mediaProject.buildDir}/${moduleNativeDirName}"
+            into destDirName
 
             def mediaBuildType = project(":media").ext.buildType
             if (IS_COMPILE_MEDIA) {
@@ -5080,19 +5162,52 @@ compileTargets { t ->
                     from ("$MEDIA_STUB/${library("glib-lite")}")
                 }
             }
+
+            if (doStrip && IS_COMPILE_MEDIA) {
+                doLast {
+                    def inputFiles = fileTree(dir: destDirName)
+                    inputFiles.include("*.dll")
+                    inputFiles.include("*.dylib")
+                    inputFiles.include("*.so")
+
+                    inputFiles.each { file ->
+                        exec {
+                            def cmd = [ strip, stripArgs, file ].flatten()
+                            commandLine(cmd)
+                        }
+                    }
+                }
+            }
         }
 
         def buildModuleWeb = task("buildModuleWeb$t.capital", type: Copy, dependsOn: [webProject.assemble, prepOpenJfxStubs]) {
             group = "Basic"
             description = "copies javafx.web native libraries"
 
-            into "${webProject.buildDir}/${moduleNativeDirName}"
+            def destDirName = "${webProject.buildDir}/${moduleNativeDirName}"
+            into destDirName
 
             if (IS_COMPILE_WEBKIT) {
                 from ("${webProject.buildDir}/libs/${t.name}/${library('jfxwebkit')}")
             } else {
                 if (t.name != "android" && t.name != "ios" && t.name != "dalvik") {
                     from ("$WEB_STUB/${library('jfxwebkit')}")
+                }
+            }
+
+            if (doStrip && IS_COMPILE_WEBKIT) {
+                doLast {
+                    def inputFiles = fileTree(dir: destDirName)
+                    inputFiles.include("*.dll")
+                    inputFiles.include("*.dylib")
+                    inputFiles.include("*.so")
+
+                    inputFiles.each { file ->
+                        exec {
+                            def cmd = [ strip, stripArgs, file ].flatten()
+                            commandLine(cmd)
+                        }
+                    }
                 }
             }
         }
@@ -5266,13 +5381,6 @@ compileTargets { t ->
         def standaloneSdkDir = "${rootProject.buildDir}/${standaloneSdkDirName}"
         def standaloneLegalDir = "${standaloneSdkDir}/legal"
 
-        def excludeNativeLibs = []
-        if (IS_WINDOWS) {
-            // List of duplicate Microsoft DLLs to exclude
-            excludeNativeLibs += targetProperties.VS2017DLLNames
-            excludeNativeLibs += targetProperties.WinSDKDLLNames
-        }
-
         moduleProjList.each { project ->
             def moduleName = project.ext.moduleName
             def buildDir = project.buildDir
@@ -5281,9 +5389,36 @@ compileTargets { t ->
             def srcLibDir = "${buildDir}/${platformPrefix}module-lib"
             def srcLegalDir = "${standaloneLegalDir}/${moduleName}"
 
+            def jmodLibDir = srcLibDir
+            if (IS_WINDOWS) {
+                jmodLibDir = "${srcLibDir}-jmod"
+            }
+
             def jmodName = "${moduleName}.jmod"
             def jmodFile = "${jmodsDir}/${jmodName}"
-            def jmodTask = project.task("jmod$t.capital", group: "Build", dependsOn: sdk) {
+
+            // On Windows, copy the native libraries in the jmod image
+            // to a "javafx" subdir to avoid conflicting with the Microsoft
+            // DLLs that are shipped with the JDK
+            def jmodCopyLibTask = project.task("jmodCopyLib$t.capital", type: Copy, dependsOn: sdk) {
+                enabled = IS_WINDOWS
+
+                group = "Basic"
+                description = "copied Windows DLLs into javafx subdir for jmods"
+
+                into jmodLibDir
+
+                from (srcLibDir) {
+                    exclude("*.dll")
+                }
+
+                from (srcLibDir) {
+                    include("*.dll")
+                    into("javafx")
+                }
+            }
+
+            def jmodTask = project.task("jmod$t.capital", group: "Build", dependsOn: [sdk, jmodCopyLibTask]) {
                 doLast {
                     mkdir jmodsDir
                     delete(jmodFile);
@@ -5293,16 +5428,9 @@ compileTargets { t ->
                         args("--class-path")
                         args(srcClassesDir)
                         // Not all modules have a "lib" dir
-                        if (file(srcLibDir).isDirectory()) {
+                        if (file(jmodLibDir).isDirectory()) {
                             args("--libs")
-                            args(srcLibDir)
-                        }
-                        // Exclude duplicate native libs from javafx.graphics.jmod
-                        if (moduleName == "javafx.graphics") {
-                            excludeNativeLibs.each { name ->
-                                args("--exclude")
-                                args(name)
-                            }
+                            args(jmodLibDir)
                         }
                         args("--legal-notices")
                         args(srcLegalDir)

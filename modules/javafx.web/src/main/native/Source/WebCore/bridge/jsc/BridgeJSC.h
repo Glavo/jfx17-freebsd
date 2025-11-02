@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2008, 2009 Apple Inc. All rights reserved.
+ * Copyright (C) 2003-2024 Apple Inc. All rights reserved.
  * Copyright 2010, The Android Open Source Project
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,13 +24,14 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef BridgeJSC_h
-#define BridgeJSC_h
-
+#pragma once
+#if PLATFORM(JAVA)
 #include "Bridge.h"
+#endif
 #include <JavaScriptCore/JSString.h>
-#include <wtf/HashMap.h>
+#include <wtf/Noncopyable.h>
 #include <wtf/RefCounted.h>
+#include <wtf/TZoneMalloc.h>
 #include <wtf/Vector.h>
 
 namespace JSC  {
@@ -49,16 +50,27 @@ class RootObject;
 class RuntimeObject;
 
 class Field {
-    WTF_MAKE_FAST_ALLOCATED;
+    WTF_MAKE_TZONE_ALLOCATED(Field);
 public:
     virtual JSValue valueFromInstance(JSGlobalObject*, const Instance*) const = 0;
     virtual bool setValueToInstance(JSGlobalObject*, const Instance*, JSValue) const = 0;
 
     virtual ~Field() = default;
 };
+#if !PLATFORM(JAVA)
+class Method {
+    WTF_MAKE_TZONE_ALLOCATED(Method);
+    WTF_MAKE_NONCOPYABLE(Method);
+public:
+    Method() = default;
+    virtual int numParameters() const = 0;
 
+    virtual ~Method() = default;
+};
+#endif
 class Class {
-    WTF_MAKE_NONCOPYABLE(Class); WTF_MAKE_FAST_ALLOCATED;
+    WTF_MAKE_TZONE_ALLOCATED(Class);
+    WTF_MAKE_NONCOPYABLE(Class);
 public:
     Class() = default;
     virtual Method* methodNamed(PropertyName, Instance*) const = 0;
@@ -144,5 +156,3 @@ typedef HashMap<RefPtr<StringImpl>, Field*> FieldMap;
 } // namespace Bindings
 
 } // namespace JSC
-
-#endif

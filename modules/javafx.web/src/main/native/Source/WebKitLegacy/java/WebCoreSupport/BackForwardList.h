@@ -36,15 +36,13 @@
 typedef Vector<Ref<WebCore::HistoryItem>> HistoryItemVector;
 typedef HashSet<RefPtr<WebCore::HistoryItem>> HistoryItemHashSet;
 
-typedef Vector<Ref<WebCore::HistoryItem>> HistoryItemVector;
-typedef HashSet<RefPtr<WebCore::HistoryItem>> HistoryItemHashSet;
-
 class BackForwardList : public WebCore::BackForwardClient {
 public:
     static Ref<BackForwardList> create() { return adoptRef(*new BackForwardList()); }
     virtual ~BackForwardList();
 
     void addItem(Ref<WebCore::HistoryItem>&&) override;
+    void setChildItem(WebCore::BackForwardFrameItemIdentifier, Ref<WebCore::HistoryItem>&&) override;
     void goBack();
     void goForward();
     void goToItem(WebCore::HistoryItem&) override;
@@ -52,7 +50,8 @@ public:
     RefPtr<WebCore::HistoryItem> backItem();
     RefPtr<WebCore::HistoryItem> currentItem();
     RefPtr<WebCore::HistoryItem> forwardItem();
-    RefPtr<WebCore::HistoryItem> itemAtIndex(int) override;
+    RefPtr<WebCore::HistoryItem> itemAtIndex(int, WebCore::FrameIdentifier) override;
+    RefPtr<WebCore::HistoryItem> itemAtIndex(int) ;
 
     void backListWithLimit(int, HistoryItemVector&);
     void forwardListWithLimit(int, HistoryItemVector&);
@@ -61,14 +60,16 @@ public:
     void setCapacity(int);
     bool enabled();
     void setEnabled(bool);
-    unsigned backListCount() const final;
-    unsigned forwardListCount() const final;
-    bool containsItem(WebCore::HistoryItem*);
+    unsigned backListCount() const override;
+    unsigned forwardListCount() const override;
+    bool containsItem(const WebCore::HistoryItem&) const override;
+    void goToProvisionalItem(const WebCore::HistoryItem&) override;
+    void clearProvisionalItem(const WebCore::HistoryItem&) override;
 
     void close() override;
     bool closed();
 
-    void removeItem(WebCore::HistoryItem*);
+    void removeItem(WebCore::HistoryItem&);
     HistoryItemVector& entries();
 
     JLObject hostObject() const { return m_hostObject; }
@@ -80,6 +81,7 @@ private:
     HistoryItemVector m_entries;
     HistoryItemHashSet m_entryHash;
     unsigned m_current;
+    unsigned m_provisional;
     unsigned m_capacity;
     bool m_closed;
     bool m_enabled;

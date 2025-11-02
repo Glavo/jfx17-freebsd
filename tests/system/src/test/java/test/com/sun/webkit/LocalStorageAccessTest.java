@@ -42,6 +42,7 @@ import org.junit.Test;
 public class LocalStorageAccessTest {
     @Test (timeout = 15000)
     public void testMainThreadDoesNotSegfault() throws Exception {
+        assumeTrue(Boolean.getBoolean("web.test"));
         if (PlatformUtil.isWindows()) {
             assumeTrue(Boolean.getBoolean("unstable.test")); // JDK-8265661
         }

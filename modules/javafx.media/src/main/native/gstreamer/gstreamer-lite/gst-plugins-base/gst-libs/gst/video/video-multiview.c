@@ -28,7 +28,7 @@
 GType
 gst_video_multiview_flagset_get_type (void)
 {
-  static volatile GType type = 0;
+  static GType type = 0;
 
   if (g_once_init_enter (&type)) {
     GType _type = gst_flagset_register (GST_TYPE_VIDEO_MULTIVIEW_FLAGS);
@@ -46,29 +46,29 @@ static const struct mview_map_t
   GstVideoMultiviewMode mode;
 } gst_multiview_modes[] = {
   {
-  "mono", GST_VIDEO_MULTIVIEW_MODE_MONO}, {
-  "left", GST_VIDEO_MULTIVIEW_MODE_LEFT}, {
-  "right", GST_VIDEO_MULTIVIEW_MODE_RIGHT}, {
-  "side-by-side", GST_VIDEO_MULTIVIEW_MODE_SIDE_BY_SIDE}, {
-  "side-by-side-quincunx", GST_VIDEO_MULTIVIEW_MODE_SIDE_BY_SIDE_QUINCUNX}, {
-  "column-interleaved", GST_VIDEO_MULTIVIEW_MODE_COLUMN_INTERLEAVED}, {
-  "row-interleaved", GST_VIDEO_MULTIVIEW_MODE_ROW_INTERLEAVED}, {
-  "top-bottom", GST_VIDEO_MULTIVIEW_MODE_TOP_BOTTOM}, {
-  "checkerboard", GST_VIDEO_MULTIVIEW_MODE_CHECKERBOARD}, {
-  "frame-by-frame", GST_VIDEO_MULTIVIEW_MODE_FRAME_BY_FRAME}, {
-  "multiview-frame-by-frame",
-        GST_VIDEO_MULTIVIEW_MODE_MULTIVIEW_FRAME_BY_FRAME}, {
-  "separated", GST_VIDEO_MULTIVIEW_MODE_SEPARATED}
+      "mono", GST_VIDEO_MULTIVIEW_MODE_MONO}, {
+      "left", GST_VIDEO_MULTIVIEW_MODE_LEFT}, {
+      "right", GST_VIDEO_MULTIVIEW_MODE_RIGHT}, {
+      "side-by-side", GST_VIDEO_MULTIVIEW_MODE_SIDE_BY_SIDE}, {
+      "side-by-side-quincunx", GST_VIDEO_MULTIVIEW_MODE_SIDE_BY_SIDE_QUINCUNX}, {
+      "column-interleaved", GST_VIDEO_MULTIVIEW_MODE_COLUMN_INTERLEAVED}, {
+      "row-interleaved", GST_VIDEO_MULTIVIEW_MODE_ROW_INTERLEAVED}, {
+      "top-bottom", GST_VIDEO_MULTIVIEW_MODE_TOP_BOTTOM}, {
+      "checkerboard", GST_VIDEO_MULTIVIEW_MODE_CHECKERBOARD}, {
+      "frame-by-frame", GST_VIDEO_MULTIVIEW_MODE_FRAME_BY_FRAME}, {
+        "multiview-frame-by-frame",
+      GST_VIDEO_MULTIVIEW_MODE_MULTIVIEW_FRAME_BY_FRAME}, {
+      "separated", GST_VIDEO_MULTIVIEW_MODE_SEPARATED}
 };
 
 /**
  * gst_video_multiview_mode_to_caps_string:
  * @mview_mode: A #GstVideoMultiviewMode value
  *
- * Returns: The caps string representation of the mode, or NULL if invalid.
- *
  * Given a #GstVideoMultiviewMode returns the multiview-mode caps string
  * for insertion into a caps structure
+ *
+ * Returns: (nullable): The caps string representation of the mode, or NULL if invalid.
  *
  * Since: 1.6
  */
@@ -405,7 +405,7 @@ gst_video_multiview_guess_half_aspect (GstVideoMultiviewMode mv_mode,
 GType
 gst_video_multiview_meta_api_get_type (void)
 {
-  static volatile GType type = 0;
+  static GType type = 0;
   static const gchar *tags[] =
       { GST_META_TAG_VIDEO_STR, GST_META_TAG_MEMORY_STR,
     NULL

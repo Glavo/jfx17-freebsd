@@ -138,11 +138,15 @@ typedef enum {
   GST_VIDEO_TRANSFER_BT601
 } GstVideoTransferFunction;
 
+GST_VIDEO_DEPRECATED_FOR(gst_video_transfer_function_encode)
+gdouble      gst_video_color_transfer_encode    (GstVideoTransferFunction func, gdouble val);
 GST_VIDEO_API
-gdouble      gst_video_color_transfer_encode (GstVideoTransferFunction func, gdouble val);
+gdouble      gst_video_transfer_function_encode (GstVideoTransferFunction func, gdouble val);
 
+GST_VIDEO_DEPRECATED_FOR(gst_video_transfer_function_decode)
+gdouble      gst_video_color_transfer_decode    (GstVideoTransferFunction func, gdouble val);
 GST_VIDEO_API
-gdouble      gst_video_color_transfer_decode (GstVideoTransferFunction func, gdouble val);
+gdouble      gst_video_transfer_function_decode (GstVideoTransferFunction func, gdouble val);
 
 /**
  * GstVideoColorPrimaries:
@@ -218,6 +222,10 @@ GST_VIDEO_API
 const GstVideoColorPrimariesInfo *
                 gst_video_color_primaries_get_info     (GstVideoColorPrimaries primaries);
 
+GST_VIDEO_API
+gboolean gst_video_color_primaries_is_equivalent       (GstVideoColorPrimaries primaries,
+                                                        GstVideoColorPrimaries other);
+
 /**
  * GstVideoColorimetry:
  * @range: the color range. This is the valid range for the samples.
@@ -257,6 +265,12 @@ gchar *      gst_video_colorimetry_to_string   (const GstVideoColorimetry *cinfo
 
 GST_VIDEO_API
 gboolean     gst_video_colorimetry_is_equal    (const GstVideoColorimetry *cinfo, const GstVideoColorimetry *other);
+
+GST_VIDEO_API
+gboolean     gst_video_colorimetry_is_equivalent (const GstVideoColorimetry *cinfo,
+                                                  guint bitdepth,
+                                                  const GstVideoColorimetry *other,
+                                                  guint other_bitdepth);
 
 /* compute offset and scale */
 

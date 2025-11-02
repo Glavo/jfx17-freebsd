@@ -14,9 +14,7 @@
 #include "libxslt.h"
 
 #include <string.h>
-#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
-#endif
 
 #include <libxml/xmlmemory.h>
 #include <libxml/tree.h>
@@ -37,9 +35,9 @@
 #endif
 
 /************************************************************************
- *                                  *
- *      Handling of XSLT debugging              *
- *                                  *
+ *                                    *
+ *        Handling of XSLT debugging                *
+ *                                    *
  ************************************************************************/
 
 /**
@@ -112,9 +110,9 @@ xsltDebug(xsltTransformContextPtr ctxt, xmlNodePtr node ATTRIBUTE_UNUSED,
 }
 
 /************************************************************************
- *                                  *
- *      Classic extensions as described by M. Kay       *
- *                                  *
+ *                                    *
+ *        Classic extensions as described by M. Kay        *
+ *                                    *
  ************************************************************************/
 
 /**

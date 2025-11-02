@@ -45,22 +45,11 @@
 
 using WTF::Range;
 
+WTF_ALLOW_UNSAFE_BUFFER_USAGE_BEGIN
+
 namespace JSC { namespace B3 { namespace Air {
 
 namespace {
-
-NO_RETURN_DUE_TO_CRASH NEVER_INLINE void crash()
-{
-    CRASH();
-}
-
-#undef RELEASE_ASSERT
-#define RELEASE_ASSERT(assertion) do { \
-    if (!(assertion)) { \
-        WTFReportAssertionFailure(__FILE__, __LINE__, WTF_PRETTY_FUNCTION, #assertion); \
-        crash(); \
-    } \
-} while (0)
 
 bool verbose() { return Options::airLinearScanVerbose(); }
 
@@ -83,7 +72,7 @@ struct TmpData {
 
     Interval interval;
     StackSlot* spilled { nullptr };
-    RegisterSet possibleRegs;
+    ScalarRegisterSet possibleRegs;
     Reg assigned;
     bool isUnspillable { false };
     bool didBuildPossibleRegs { false };
@@ -91,9 +80,7 @@ struct TmpData {
 };
 
 struct Clobber {
-    Clobber()
-    {
-    }
+    Clobber() = default;
 
     Clobber(size_t index, RegisterSet regs)
         : index(index)
@@ -123,7 +110,7 @@ public:
     void run()
     {
         padInterference(m_code);
-        buildRegisterSet();
+        buildRegisterSetBuilder();
         buildIndices();
         buildIntervals();
         if (shouldSpillEverything()) {
@@ -154,13 +141,16 @@ public:
     }
 
 private:
-    void buildRegisterSet()
+    void buildRegisterSetBuilder()
     {
         forEachBank(
             [&] (Bank bank) {
-                m_registers[bank] = m_code.regsInPriorityOrder(bank);
-                m_registerSet[bank].setAll(m_registers[bank]);
-                m_unifiedRegisterSet.merge(m_registerSet[bank]);
+                m_allowedRegistersInPriorityOrder[bank] = m_code.regsInPriorityOrder(bank);
+                for (Reg r : m_allowedRegistersInPriorityOrder[bank])
+                    m_allowedRegisters[bank].add(r, IgnoreVectors);
+                m_allAllowedRegisters = m_allAllowedRegisters.toRegisterSet()
+                    .merge(m_allowedRegisters[bank].toRegisterSet())
+                    .buildScalarRegisterSet();
             });
     }
 
@@ -233,7 +223,7 @@ private:
 
     void buildIntervals()
     {
-        TimingScope timingScope("LinearScan::buildIntervals");
+        CompilerTimingScope timingScope("Air"_s, "LinearScan::buildIntervals"_s);
         UnifiedTmpLiveness liveness(m_code);
 
         for (BasicBlock* block : m_code) {
@@ -275,31 +265,31 @@ private:
                 // liveness constraints. Except we want those constraints to separate the late
                 // actions of one instruction from the early actions of the next.
                 // https://bugs.webkit.org/show_bug.cgi?id=170850
-                const RegisterSet& regs = localCalc.live();
+                const auto& regs = localCalc.live();
                 if (Inst* prev = block->get(instIndex - 1)) {
-                    RegisterSet prevRegs = regs;
+                    RegisterSetBuilder prevRegs = regs;
                     prev->forEach<Reg>(
-                        [&] (Reg& reg, Arg::Role role, Bank, Width) {
+                        [&] (Reg& reg, Arg::Role role, Bank, Width width) {
                             if (Arg::isLateDef(role))
-                                prevRegs.add(reg);
+                                prevRegs.add(reg, width);
                         });
                     if (prev->kind.opcode == Patch)
                         prevRegs.merge(prev->extraClobberedRegs());
-                    prevRegs.filter(m_unifiedRegisterSet);
+                    prevRegs.filter(m_allAllowedRegisters.toRegisterSet().includeWholeRegisterWidth());
                     if (!prevRegs.isEmpty())
-                        m_clobbers.append(Clobber(indexOfHead + instIndex * 2 - 1, prevRegs));
+                        m_clobbers.append(Clobber(indexOfHead + instIndex * 2 - 1, prevRegs.buildAndValidate()));
                 }
                 if (Inst* next = block->get(instIndex)) {
-                    RegisterSet nextRegs = regs;
+                    RegisterSetBuilder nextRegs = regs;
                     next->forEach<Reg>(
-                        [&] (Reg& reg, Arg::Role role, Bank, Width) {
+                        [&] (Reg& reg, Arg::Role role, Bank, Width width) {
                             if (Arg::isEarlyDef(role))
-                                nextRegs.add(reg);
+                                nextRegs.add(reg, width);
                         });
                     if (next->kind.opcode == Patch)
-                        nextRegs.merge(next->extraEarlyClobberedRegs());
+                        nextRegs.merge(next->extraEarlyClobberedRegs().buildAndValidate());
                     if (!nextRegs.isEmpty())
-                        m_clobbers.append(Clobber(indexOfHead + instIndex * 2, nextRegs));
+                        m_clobbers.append(Clobber(indexOfHead + instIndex * 2, nextRegs.buildAndValidate()));
                 }
             };
 
@@ -466,11 +456,11 @@ private:
                 while (clobberIndex < m_clobbers.size() && m_clobbers[clobberIndex].index < index)
                     clobberIndex++;
 
-                RegisterSet possibleRegs = m_registerSet[bank];
+                RegisterSetBuilder possibleRegs = m_allowedRegisters[bank].toRegisterSet();
                 for (size_t i = clobberIndex; i < m_clobbers.size() && m_clobbers[i].index < entry.interval.end(); ++i)
-                    possibleRegs.exclude(m_clobbers[i].regs);
+                    possibleRegs.exclude(m_clobbers[i].regs.includeWholeRegisterWidth());
 
-                entry.possibleRegs = possibleRegs;
+                entry.possibleRegs = possibleRegs.buildScalarRegisterSet();
                 entry.didBuildPossibleRegs = true;
             }
 
@@ -478,12 +468,12 @@ private:
                 dataLog("  Possible regs: ", entry.possibleRegs, "\n");
 
             // Find a free register that we are allowed to use.
-            if (m_active.size() != m_registers[bank].size()) {
+            if (m_active.size() != m_allowedRegistersInPriorityOrder[bank].size()) {
                 bool didAssign = false;
-                for (Reg reg : m_registers[bank]) {
+                for (Reg reg : m_allowedRegistersInPriorityOrder[bank]) {
                     // FIXME: Could do priority coloring here.
                     // https://bugs.webkit.org/show_bug.cgi?id=170304
-                    if (!m_activeRegs.contains(reg) && entry.possibleRegs.contains(reg)) {
+                    if (!m_activeRegs.contains(reg, IgnoreVectors) && entry.possibleRegs.contains(reg, IgnoreVectors)) {
                         assign(tmp, reg);
                         didAssign = true;
                         break;
@@ -496,7 +486,7 @@ private:
             // This is SpillAtInterval in Fig. 1, but modified to handle clobbers.
             Tmp spillTmp = m_active.takeLast(
                 [&] (Tmp spillCandidate) -> bool {
-                    return entry.possibleRegs.contains(m_map[spillCandidate].assigned);
+                    return entry.possibleRegs.contains(m_map[spillCandidate].assigned, IgnoreVectors);
                 });
             if (!spillTmp) {
                 spill(tmp);
@@ -538,7 +528,7 @@ private:
         TmpData& entry = m_map[tmp];
         RELEASE_ASSERT(!entry.spilled);
         entry.assigned = reg;
-        m_activeRegs.add(reg);
+        m_activeRegs.add(reg, IgnoreVectors);
         addToActive(tmp);
     }
 
@@ -546,7 +536,7 @@ private:
     {
         TmpData& entry = m_map[tmp];
         RELEASE_ASSERT(!entry.isUnspillable);
-        entry.spilled = m_code.addStackSlot(8, StackSlotKind::Spill);
+        entry.spilled = m_code.addStackSlot(conservativeRegisterBytesWithoutVectors(tmp.bank()), StackSlotKind::Spill);
         entry.assigned = Reg();
         m_didSpill = true;
     }
@@ -625,7 +615,9 @@ private:
             }
 
             entry.spillIndex = m_usedSpillSlots.findBit(0, false);
-            ptrdiff_t offset = -static_cast<ptrdiff_t>(m_code.frameSize()) - static_cast<ptrdiff_t>(entry.spillIndex) * 8 - 8;
+            size_t slotSize = conservativeRegisterBytesWithoutVectors(FP);
+            ASSERT(entry.spilled->byteSize() <= slotSize);
+            ptrdiff_t offset = -static_cast<ptrdiff_t>(m_code.frameSize()) - static_cast<ptrdiff_t>(entry.spillIndex) * slotSize - slotSize;
             if (verbose())
                 dataLog("  Assigning offset = ", offset, " to spill ", pointerDump(entry.spilled), " for ", tmp, "\n");
             entry.spilled->setOffsetFromFP(offset);
@@ -673,9 +665,9 @@ private:
     }
 
     Code& m_code;
-    Vector<Reg> m_registers[numBanks];
-    RegisterSet m_registerSet[numBanks];
-    RegisterSet m_unifiedRegisterSet;
+    Vector<Reg> m_allowedRegistersInPriorityOrder[numBanks];
+    ScalarRegisterSet m_allowedRegisters[numBanks];
+    ScalarRegisterSet m_allAllowedRegisters;
     IndexMap<BasicBlock*, size_t> m_startIndex;
     TmpMap<TmpData> m_map;
     IndexMap<BasicBlock*, PhaseInsertionSet> m_insertionSets;
@@ -691,7 +683,8 @@ private:
 
 void allocateRegistersAndStackByLinearScan(Code& code)
 {
-    PhaseScope phaseScope(code, "allocateRegistersAndStackByLinearScan");
+    RELEASE_ASSERT(!code.usesSIMD());
+    PhaseScope phaseScope(code, "allocateRegistersAndStackByLinearScan"_s);
     if (verbose())
         dataLog("Air before linear scan:\n", code);
     LinearScan linearScan(code);
@@ -701,5 +694,7 @@ void allocateRegistersAndStackByLinearScan(Code& code)
 }
 
 } } } // namespace JSC::B3::Air
+
+WTF_ALLOW_UNSAFE_BUFFER_USAGE_END
 
 #endif // ENABLE(B3_JIT)

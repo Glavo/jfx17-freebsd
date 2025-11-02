@@ -3,10 +3,10 @@ include(platform/TextureMapper.cmake)
 set(WebCore_OUTPUT_NAME WebCore)
 
 # JDK-9 +
-set(JAVA_JNI_GENSRC_PATH "${CMAKE_BINARY_DIR}/../../gensrc/headers/javafx.web")
+set(JAVA_JNI_GENSRC_PATH "${CMAKE_BINARY_DIR}/../gensrc/headers/javafx.web")
 if (NOT EXISTS ${JAVA_JNI_GENSRC_PATH})
     # JDK-8
-    set(JAVA_JNI_GENSRC_PATH "${CMAKE_BINARY_DIR}/../../generated-src/headers")
+    set(JAVA_JNI_GENSRC_PATH "${CMAKE_BINARY_DIR}/../generated-src/headers")
 endif ()
 
 list(REMOVE_ITEM  WebCore_PRIVATE_FRAMEWORK_HEADERS
@@ -20,6 +20,7 @@ list(APPEND WebCore_INCLUDE_DIRECTORIES
     "${WEBCORE_DIR}/platform/linux"
     "${WEBCORE_DIR}/platform/network"
     "${WEBCORE_DIR}/platform/network/java"
+    "${WEBCORE_DIR}/platform/video-codecs"
     "${WEBCORE_DIR}/bindings/java"
     "${WEBCORE_DIR}/page/java"
     "${WEBCORE_DIR}/bridge/jni"
@@ -57,16 +58,18 @@ endif ()
 #FIXME: Workaround
 list(APPEND WebCoreTestSupport_LIBRARIES ${SQLite3_LIBRARIES})
 
+
 list(APPEND WebCore_USER_AGENT_STYLE_SHEETS
-    ${WEBCORE_DIR}/Modules/mediacontrols/mediaControlsAdwaita.css
     ${WEBCORE_DIR}/css/themeAdwaita.css
+    ${WebCore_DERIVED_SOURCES_DIR}/ModernMediaControls.css
 )
+
 
 set(WebCore_USER_AGENT_SCRIPTS
-    ${WEBCORE_DIR}/Modules/mediacontrols/mediaControlsAdwaita.js
+    ${WebCore_DERIVED_SOURCES_DIR}/ModernMediaControls.js
 )
 
-add_definitions(-DMAX_DOM_TREE_DEPTH=2000)
+add_definitions(-DMAX_XML_TREE_DEPTH=2000)
 
 set(WebCore_USER_AGENT_SCRIPTS_DEPENDENCIES ${WEBCORE_DIR}/platform/java/RenderThemeJava.cpp)
 
@@ -78,15 +81,22 @@ list(APPEND WebCore_LIBRARIES
 
 add_definitions(-DSTATICALLY_LINKED_WITH_JavaScriptCore)
 add_definitions(-DSTATICALLY_LINKED_WITH_WTF)
+if (USE_SYSTEM_MALLOC)
+    message(STATUS "Using system malloc")
+    add_definitions(-DUSE_SYSTEM_MALLOC)
+endif ()
 
 list(APPEND WebCore_PRIVATE_FRAMEWORK_HEADERS
     bindings/java/JavaDOMUtils.h
     bindings/java/JavaEventListener.h
+    bindings/java/EventListenerManager.h
     bindings/java/JavaNodeFilterCondition.h
     bridge/jni/jsc/BridgeUtils.h
     dom/DOMStringList.h
     platform/graphics/java/ImageBufferJavaBackend.h
+    platform/graphics/java/ImageJava.h
     platform/graphics/java/PlatformContextJava.h
+    platform/graphics/java/PathJava.h
     platform/graphics/java/RQRef.h
     platform/graphics/java/RenderingQueue.h
     platform/graphics/texmap/BitmapTextureJava.h

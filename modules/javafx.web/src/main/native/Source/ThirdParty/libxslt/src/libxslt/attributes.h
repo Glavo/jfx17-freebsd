@@ -13,18 +13,19 @@
 
 #include <libxml/tree.h>
 #include "xsltexports.h"
+#include "xsltInternals.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 XSLTPUBFUN void XSLTCALL
-    xsltParseStylesheetAttributeSet (xsltStylesheetPtr style,
+    xsltParseStylesheetAttributeSet    (xsltStylesheetPtr style,
                      xmlNodePtr cur);
 XSLTPUBFUN void XSLTCALL
-    xsltFreeAttributeSetsHashes (xsltStylesheetPtr style);
+    xsltFreeAttributeSetsHashes    (xsltStylesheetPtr style);
 XSLTPUBFUN void XSLTCALL
-    xsltApplyAttributeSet       (xsltTransformContextPtr ctxt,
+    xsltApplyAttributeSet        (xsltTransformContextPtr ctxt,
                      xmlNodePtr node,
                      xmlNodePtr inst,
                      const xmlChar *attributes);

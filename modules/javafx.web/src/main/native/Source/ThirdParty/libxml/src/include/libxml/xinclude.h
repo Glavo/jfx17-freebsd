@@ -14,6 +14,7 @@
 #define __XML_XINCLUDE_H__
 
 #include <libxml/xmlversion.h>
+#include <libxml/xmlerror.h>
 #include <libxml/tree.h>
 
 #ifdef LIBXML_XINCLUDE_ENABLED
@@ -89,36 +90,42 @@ typedef xmlXIncludeCtxt *xmlXIncludeCtxtPtr;
 /*
  * standalone processing
  */
-XMLPUBFUN int XMLCALL
-        xmlXIncludeProcess  (xmlDocPtr doc);
-XMLPUBFUN int XMLCALL
-        xmlXIncludeProcessFlags (xmlDocPtr doc,
+XMLPUBFUN int
+        xmlXIncludeProcess    (xmlDocPtr doc);
+XMLPUBFUN int
+        xmlXIncludeProcessFlags    (xmlDocPtr doc,
                      int flags);
-XMLPUBFUN int XMLCALL
+XMLPUBFUN int
         xmlXIncludeProcessFlagsData(xmlDocPtr doc,
                      int flags,
                      void *data);
-XMLPUBFUN int XMLCALL
+XMLPUBFUN int
                 xmlXIncludeProcessTreeFlagsData(xmlNodePtr tree,
                                          int flags,
                                          void *data);
-XMLPUBFUN int XMLCALL
-        xmlXIncludeProcessTree  (xmlNodePtr tree);
-XMLPUBFUN int XMLCALL
+XMLPUBFUN int
+        xmlXIncludeProcessTree    (xmlNodePtr tree);
+XMLPUBFUN int
         xmlXIncludeProcessTreeFlags(xmlNodePtr tree,
                      int flags);
 /*
  * contextual processing
  */
-XMLPUBFUN xmlXIncludeCtxtPtr XMLCALL
-        xmlXIncludeNewContext   (xmlDocPtr doc);
-XMLPUBFUN int XMLCALL
-        xmlXIncludeSetFlags (xmlXIncludeCtxtPtr ctxt,
+XMLPUBFUN xmlXIncludeCtxtPtr
+        xmlXIncludeNewContext    (xmlDocPtr doc);
+XMLPUBFUN int
+        xmlXIncludeSetFlags    (xmlXIncludeCtxtPtr ctxt,
                      int flags);
-XMLPUBFUN void XMLCALL
-        xmlXIncludeFreeContext  (xmlXIncludeCtxtPtr ctxt);
-XMLPUBFUN int XMLCALL
-        xmlXIncludeProcessNode  (xmlXIncludeCtxtPtr ctxt,
+XMLPUBFUN void
+        xmlXIncludeSetErrorHandler(xmlXIncludeCtxtPtr ctxt,
+                     xmlStructuredErrorFunc handler,
+                     void *data);
+XMLPUBFUN int
+        xmlXIncludeGetLastError    (xmlXIncludeCtxtPtr ctxt);
+XMLPUBFUN void
+        xmlXIncludeFreeContext    (xmlXIncludeCtxtPtr ctxt);
+XMLPUBFUN int
+        xmlXIncludeProcessNode    (xmlXIncludeCtxtPtr ctxt,
                      xmlNodePtr tree);
 #ifdef __cplusplus
 }

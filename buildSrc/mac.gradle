@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,7 +50,7 @@ MAC.libDest = "lib"
  * In extreme cases you can provide your own properties in your home dir to
  * override these settings or pass them on the command line.
  */
-def prefSdkVersion = "11.1"
+def prefSdkVersion = "13.3"
 def defaultSdkPath = "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX${prefSdkVersion}.sdk";
 
 // Set the minimum API version that we require (developers do not need to override this)
@@ -171,12 +171,17 @@ if (hasProperty('toolchainDir')) {
 def compiler = IS_COMPILE_PARFAIT ? "parfait-clang" : "${toolchainDir}clang";
 def linker = IS_STATIC_BUILD ? "libtool" : IS_COMPILE_PARFAIT ? "parfait-clang++" : "${toolchainDir}clang++";
 
+// Strip native .dylib shared libraries as a postprocess step when copying them
+MAC.strip = "${toolchainDir}strip"
+MAC.stripArgs = [ "-x" ]
+
 MAC.glass = [:]
 MAC.glass.javahInclude = [
     "com/sun/glass/events/**",
     "com/sun/glass/ui/*",
     "com/sun/glass/ui/mac/*"]
-MAC.glass.nativeSource = file("${project("graphics").projectDir}/src/main/native-glass/mac")
+MAC.glass.nativeSource = [file("${project("graphics").projectDir}/src/main/native-glass/mac"),
+        file("${project("graphics").projectDir}/src/main/native-glass/mac/a11y")]
 MAC.glass.compiler = compiler
 MAC.glass.ccFlags = [ccFlags].flatten()
 MAC.glass.linker = linker

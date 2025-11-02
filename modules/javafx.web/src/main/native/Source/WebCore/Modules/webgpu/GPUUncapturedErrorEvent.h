@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 Apple Inc. All rights reserved.
+ * Copyright (C) 2021-2023 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,36 +25,33 @@
 
 #pragma once
 
-#if ENABLE(WEBGPU)
-
 #include "Event.h"
 #include "GPUError.h"
+#include "GPUUncapturedErrorEventInit.h"
+#include "WebGPUUncapturedErrorEvent.h"
 #include <wtf/Ref.h>
+#include <wtf/RefCounted.h>
+#include <wtf/text/WTFString.h>
 
 namespace WebCore {
 
 class GPUUncapturedErrorEvent final : public Event {
-    WTF_MAKE_ISO_ALLOCATED(GPUUncapturedErrorEvent);
+    WTF_MAKE_TZONE_OR_ISO_ALLOCATED(GPUUncapturedErrorEvent);
 public:
-    struct Init: EventInit {
-        GPUError error;
-    };
+    virtual ~GPUUncapturedErrorEvent() = default;
 
-    static Ref<GPUUncapturedErrorEvent> create(const AtomString&, const Init&, IsTrusted = IsTrusted::No);
-    static Ref<GPUUncapturedErrorEvent> create(const AtomString&, GPUError&&);
+    static Ref<GPUUncapturedErrorEvent> create(const AtomString& type, GPUUncapturedErrorEventInit&& gpuUncapturedErrorEventInitDict)
+    {
+        return adoptRef(*new GPUUncapturedErrorEvent(type, WTFMove(gpuUncapturedErrorEventInitDict)));
+    }
 
-    const GPUError error() const { return m_error; }
+    GPUError error() const;
 
 private:
-    GPUUncapturedErrorEvent(const AtomString&, const Init&, IsTrusted);
-    GPUUncapturedErrorEvent(const AtomString&, GPUError&&);
+    GPUUncapturedErrorEvent(const AtomString&, GPUUncapturedErrorEventInit&&);
 
-    // Event
-    EventInterface eventInterface() const override;
-
-    GPUError m_error;
+    String m_type;
+    GPUUncapturedErrorEventInit m_uncapturedErrorEventInit;
 };
 
-} // namespace WebCore
-
-#endif // ENABLE(WEBGPU)
+}

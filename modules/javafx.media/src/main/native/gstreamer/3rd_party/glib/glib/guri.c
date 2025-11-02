@@ -1,6 +1,8 @@
 /* GLIB - Library of useful routines for C programming
  * Copyright © 2020 Red Hat, Inc.
  *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
@@ -23,33 +25,85 @@
 
 #include "glib.h"
 #include "glibintl.h"
+#include "glib-private.h"
 #include "guriprivate.h"
 
 /**
- * SECTION:guri
- * @short_description: URI-handling utilities
- * @include: glib.h
+ * GUri:
  *
- * The #GUri type and related functions can be used to parse URIs into
+ * The `GUri` type and related functions can be used to parse URIs into
  * their components, and build valid URIs from individual components.
  *
- * Note that #GUri scope is to help manipulate URIs in various applications,
+ * Since `GUri` only represents absolute URIs, all `GUri`s will have a
+ * URI scheme, so [method@GLib.Uri.get_scheme] will always return a non-`NULL`
+ * answer. Likewise, by definition, all URIs have a path component, so
+ * [method@GLib.Uri.get_path] will always return a non-`NULL` string (which may
+ * be empty).
+ *
+ * If the URI string has an
+ * [‘authority’ component](https://tools.ietf.org/html/rfc3986#section-3) (that
+ * is, if the scheme is followed by `://` rather than just `:`), then the
+ * `GUri` will contain a hostname, and possibly a port and ‘userinfo’.
+ * Additionally, depending on how the `GUri` was constructed/parsed (for example,
+ * using the `G_URI_FLAGS_HAS_PASSWORD` and `G_URI_FLAGS_HAS_AUTH_PARAMS` flags),
+ * the userinfo may be split out into a username, password, and
+ * additional authorization-related parameters.
+ *
+ * Normally, the components of a `GUri` will have all `%`-encoded
+ * characters decoded. However, if you construct/parse a `GUri` with
+ * `G_URI_FLAGS_ENCODED`, then the `%`-encoding will be preserved instead in
+ * the userinfo, path, and query fields (and in the host field if also
+ * created with `G_URI_FLAGS_NON_DNS`). In particular, this is necessary if
+ * the URI may contain binary data or non-UTF-8 text, or if decoding
+ * the components might change the interpretation of the URI.
+ *
+ * For example, with the encoded flag:
+ *
+ * ```c
+ * g_autoptr(GUri) uri = g_uri_parse ("http://host/path?query=http%3A%2F%2Fhost%2Fpath%3Fparam%3Dvalue", G_URI_FLAGS_ENCODED, &err);
+ * g_assert_cmpstr (g_uri_get_query (uri), ==, "query=http%3A%2F%2Fhost%2Fpath%3Fparam%3Dvalue");
+ * ```
+ *
+ * While the default `%`-decoding behaviour would give:
+ *
+ * ```c
+ * g_autoptr(GUri) uri = g_uri_parse ("http://host/path?query=http%3A%2F%2Fhost%2Fpath%3Fparam%3Dvalue", G_URI_FLAGS_NONE, &err);
+ * g_assert_cmpstr (g_uri_get_query (uri), ==, "query=http://host/path?param=value");
+ * ```
+ *
+ * During decoding, if an invalid UTF-8 string is encountered, parsing will fail
+ * with an error indicating the bad string location:
+ *
+ * ```c
+ * g_autoptr(GUri) uri = g_uri_parse ("http://host/path?query=http%3A%2F%2Fhost%2Fpath%3Fbad%3D%00alue", G_URI_FLAGS_NONE, &err);
+ * g_assert_error (err, G_URI_ERROR, G_URI_ERROR_BAD_QUERY);
+ * ```
+ *
+ * You should pass `G_URI_FLAGS_ENCODED` or `G_URI_FLAGS_ENCODED_QUERY` if you
+ * need to handle that case manually. In particular, if the query string
+ * contains `=` characters that are `%`-encoded, you should let
+ * [func@GLib.Uri.parse_params] do the decoding once of the query.
+ *
+ * `GUri` is immutable once constructed, and can safely be accessed from
+ * multiple threads. Its reference counting is atomic.
+ *
+ * Note that the scope of `GUri` is to help manipulate URIs in various applications,
  * following [RFC 3986](https://tools.ietf.org/html/rfc3986). In particular,
- * it doesn't intend to cover web browser needs, and doesn't implement the
+ * it doesn't intend to cover web browser needs, and doesn’t implement the
  * [WHATWG URL](https://url.spec.whatwg.org/) standard. No APIs are provided to
  * help prevent
  * [homograph attacks](https://en.wikipedia.org/wiki/IDN_homograph_attack), so
- * #GUri is not suitable for formatting URIs for display to the user for making
+ * `GUri` is not suitable for formatting URIs for display to the user for making
  * security-sensitive decisions.
  *
- * ## Relative and absolute URIs # {#relative-absolute-uris}
+ * ## Relative and absolute URIs
  *
  * As defined in [RFC 3986](https://tools.ietf.org/html/rfc3986#section-4), the
  * hierarchical nature of URIs means that they can either be ‘relative
  * references’ (sometimes referred to as ‘relative URIs’) or ‘URIs’ (for
  * clarity, ‘URIs’ are referred to in this documentation as
  * ‘absolute URIs’ — although
- * [in constrast to RFC 3986](https://tools.ietf.org/html/rfc3986#section-4.3),
+ * [in contrast to RFC 3986](https://tools.ietf.org/html/rfc3986#section-4.3),
  * fragment identifiers are always allowed).
  *
  * Relative references have one or more components of the URI missing. In
@@ -62,141 +116,82 @@
  *
  * Absolute URIs have a scheme specified. Any other components of the URI which
  * are missing are specified as explicitly unset in the URI, rather than being
- * resolved relative to a base URI using g_uri_parse_relative().
+ * resolved relative to a base URI using [method@GLib.Uri.parse_relative].
  *
  * For example, a valid absolute URI is `file:///home/bob` or
  * `https://search.com?query=string`.
  *
- * A #GUri instance is always an absolute URI. A string may be an absolute URI
+ * A `GUri` instance is always an absolute URI. A string may be an absolute URI
  * or a relative reference; see the documentation for individual functions as to
  * what forms they accept.
  *
  * ## Parsing URIs
  *
- * The most minimalist APIs for parsing URIs are g_uri_split() and
- * g_uri_split_with_user(). These split a URI into its component
+ * The most minimalist APIs for parsing URIs are [func@GLib.Uri.split] and
+ * [func@GLib.Uri.split_with_user]. These split a URI into its component
  * parts, and return the parts; the difference between the two is that
- * g_uri_split() treats the ‘userinfo’ component of the URI as a
- * single element, while g_uri_split_with_user() can (depending on the
- * #GUriFlags you pass) treat it as containing a username, password,
- * and authentication parameters. Alternatively, g_uri_split_network()
+ * [func@GLib.Uri.split] treats the ‘userinfo’ component of the URI as a
+ * single element, while [func@GLib.Uri.split_with_user] can (depending on the
+ * [flags@GLib.UriFlags] you pass) treat it as containing a username, password,
+ * and authentication parameters. Alternatively, [func@GLib.Uri.split_network]
  * can be used when you are only interested in the components that are
  * needed to initiate a network connection to the service (scheme,
  * host, and port).
  *
- * g_uri_parse() is similar to g_uri_split(), but instead of returning
- * individual strings, it returns a #GUri structure (and it requires
+ * [func@GLib.Uri.parse] is similar to [func@GLib.Uri.split], but instead of
+ * returning individual strings, it returns a `GUri` structure (and it requires
  * that the URI be an absolute URI).
  *
- * g_uri_resolve_relative() and g_uri_parse_relative() allow you to
- * resolve a relative URI relative to a base URI.
- * g_uri_resolve_relative() takes two strings and returns a string,
- * and g_uri_parse_relative() takes a #GUri and a string and returns a
- * #GUri.
+ * [func@GLib.Uri.resolve_relative] and [method@GLib.Uri.parse_relative] allow
+ * you to resolve a relative URI relative to a base URI.
+ * [func@GLib.Uri.resolve_relative] takes two strings and returns a string,
+ * and [method@GLib.Uri.parse_relative] takes a `GUri` and a string and returns a
+ * `GUri`.
  *
- * All of the parsing functions take a #GUriFlags argument describing
+ * All of the parsing functions take a [flags@GLib.UriFlags] argument describing
  * exactly how to parse the URI; see the documentation for that type
  * for more details on the specific flags that you can pass. If you
  * need to choose different flags based on the type of URI, you can
- * use g_uri_peek_scheme() on the URI string to check the scheme
+ * use [func@GLib.Uri.peek_scheme] on the URI string to check the scheme
  * first, and use that to decide what flags to parse it with.
  *
- * For example, you might want to use %G_URI_PARAMS_WWW_FORM when parsing the
- * params for a web URI, so compare the result of g_uri_peek_scheme() against
- * `http` and `https`.
+ * For example, you might want to use `G_URI_PARAMS_WWW_FORM` when parsing the
+ * params for a web URI, so compare the result of [func@GLib.Uri.peek_scheme]
+ * against `http` and `https`.
  *
  * ## Building URIs
  *
- * g_uri_join() and g_uri_join_with_user() can be used to construct
+ * [func@GLib.Uri.join] and [func@GLib.Uri.join_with_user] can be used to construct
  * valid URI strings from a set of component strings. They are the
- * inverse of g_uri_split() and g_uri_split_with_user().
+ * inverse of [func@GLib.Uri.split] and [func@GLib.Uri.split_with_user].
  *
- * Similarly, g_uri_build() and g_uri_build_with_user() can be used to
- * construct a #GUri from a set of component strings.
+ * Similarly, [func@GLib.Uri.build] and [func@GLib.Uri.build_with_user] can be
+ * used to construct a `GUri` from a set of component strings.
  *
  * As with the parsing functions, the building functions take a
- * #GUriFlags argument. In particular, it is important to keep in mind
+ * [flags@GLib.UriFlags] argument. In particular, it is important to keep in mind
  * whether the URI components you are using are already `%`-encoded. If so,
- * you must pass the %G_URI_FLAGS_ENCODED flag.
+ * you must pass the `G_URI_FLAGS_ENCODED` flag.
  *
  * ## `file://` URIs
  *
  * Note that Windows and Unix both define special rules for parsing
  * `file://` URIs (involving non-UTF-8 character sets on Unix, and the
- * interpretation of path separators on Windows). #GUri does not
- * implement these rules. Use g_filename_from_uri() and
- * g_filename_to_uri() if you want to properly convert between
+ * interpretation of path separators on Windows). `GUri` does not
+ * implement these rules. Use [func@GLib.filename_from_uri] and
+ * [func@GLib.filename_to_uri] if you want to properly convert between
  * `file://` URIs and local filenames.
  *
  * ## URI Equality
  *
  * Note that there is no `g_uri_equal ()` function, because comparing
- * URIs usefully requires scheme-specific knowledge that #GUri does
- * not have. For example, `http://example.com/` and
- * `http://EXAMPLE.COM:80` have exactly the same meaning according
- * to the HTTP specification, and `data:,foo` and
- * `data:;base64,Zm9v` resolve to the same thing according to the
- * `data:` URI specification.
- *
- * Since: 2.66
- */
-
-/**
- * GUri:
- *
- * A parsed absolute URI.
- *
- * Since #GUri only represents absolute URIs, all #GUris will have a
- * URI scheme, so g_uri_get_scheme() will always return a non-%NULL
- * answer. Likewise, by definition, all URIs have a path component, so
- * g_uri_get_path() will always return a non-%NULL string (which may be empty).
- *
- * If the URI string has an
- * [‘authority’ component](https://tools.ietf.org/html/rfc3986#section-3) (that
- * is, if the scheme is followed by `://` rather than just `:`), then the
- * #GUri will contain a hostname, and possibly a port and ‘userinfo’.
- * Additionally, depending on how the #GUri was constructed/parsed (for example,
- * using the %G_URI_FLAGS_HAS_PASSWORD and %G_URI_FLAGS_HAS_AUTH_PARAMS flags),
- * the userinfo may be split out into a username, password, and
- * additional authorization-related parameters.
- *
- * Normally, the components of a #GUri will have all `%`-encoded
- * characters decoded. However, if you construct/parse a #GUri with
- * %G_URI_FLAGS_ENCODED, then the `%`-encoding will be preserved instead in
- * the userinfo, path, and query fields (and in the host field if also
- * created with %G_URI_FLAGS_NON_DNS). In particular, this is necessary if
- * the URI may contain binary data or non-UTF-8 text, or if decoding
- * the components might change the interpretation of the URI.
- *
- * For example, with the encoded flag:
- *
- * |[<!-- language="C" -->
- *   g_autoptr(GUri) uri = g_uri_parse ("http://host/path?query=http%3A%2F%2Fhost%2Fpath%3Fparam%3Dvalue", G_URI_FLAGS_ENCODED, &err);
- *   g_assert_cmpstr (g_uri_get_query (uri), ==, "query=http%3A%2F%2Fhost%2Fpath%3Fparam%3Dvalue");
- * ]|
- *
- * While the default `%`-decoding behaviour would give:
- *
- * |[<!-- language="C" -->
- *   g_autoptr(GUri) uri = g_uri_parse ("http://host/path?query=http%3A%2F%2Fhost%2Fpath%3Fparam%3Dvalue", G_URI_FLAGS_NONE, &err);
- *   g_assert_cmpstr (g_uri_get_query (uri), ==, "query=http://host/path?param=value");
- * ]|
- *
- * During decoding, if an invalid UTF-8 string is encountered, parsing will fail
- * with an error indicating the bad string location:
- *
- * |[<!-- language="C" -->
- *   g_autoptr(GUri) uri = g_uri_parse ("http://host/path?query=http%3A%2F%2Fhost%2Fpath%3Fbad%3D%00alue", G_URI_FLAGS_NONE, &err);
- *   g_assert_error (err, G_URI_ERROR, G_URI_ERROR_BAD_QUERY);
- * ]|
- *
- * You should pass %G_URI_FLAGS_ENCODED or %G_URI_FLAGS_ENCODED_QUERY if you
- * need to handle that case manually. In particular, if the query string
- * contains `=` characters that are `%`-encoded, you should let
- * g_uri_parse_params() do the decoding once of the query.
- *
- * #GUri is immutable once constructed, and can safely be accessed from
- * multiple threads. Its reference counting is atomic.
+ * URIs usefully requires scheme-specific knowledge that `GUri` does
+ * not have. `GUri` can help with normalization if you use the various
+ * encoded [flags@GLib.UriFlags] as well as `G_URI_FLAGS_SCHEME_NORMALIZE`
+ * however it is not comprehensive.
+ * For example, `data:,foo` and `data:;base64,Zm9v` resolve to the same
+ * thing according to the `data:` URI specification which GLib does not
+ * handle.
  *
  * Since: 2.66
  */
@@ -289,15 +284,16 @@ uri_decoder (gchar       **out,
              GUriError     parse_error,
              GError      **error)
 {
-  gchar *decoded, *d, c;
+  gchar c;
+  GString *decoded;
   const gchar *invalid, *s, *end;
   gssize len;
 
   if (!(flags & G_URI_FLAGS_ENCODED))
     just_normalize = FALSE;
 
-  decoded = g_malloc (length + 1);
-  for (s = start, end = s + length, d = decoded; s < end; s++)
+  decoded = g_string_sized_new (length + 1);
+  for (s = start, end = s + length; s < end; s++)
     {
       if (*s == '%')
         {
@@ -311,7 +307,7 @@ uri_decoder (gchar       **out,
                   g_set_error_literal (error, G_URI_ERROR, parse_error,
                                        /* xgettext: no-c-format */
                                        _("Invalid %-encoding in URI"));
-                  g_free (decoded);
+                  g_string_free (decoded, TRUE);
                   return -1;
                 }
 
@@ -319,7 +315,7 @@ uri_decoder (gchar       **out,
                * fix it to "%25", since that might change the way that
                * the URI's owner would interpret it.
                */
-              *d++ = *s;
+              g_string_append_c (decoded, *s);
               continue;
             }
 
@@ -328,43 +324,49 @@ uri_decoder (gchar       **out,
             {
               g_set_error_literal (error, G_URI_ERROR, parse_error,
                                    _("Illegal character in URI"));
-              g_free (decoded);
+              g_string_free (decoded, TRUE);
               return -1;
             }
           if (just_normalize && !g_uri_char_is_unreserved (c))
             {
-              /* Leave the % sequence there. */
-              *d++ = *s;
+              /* Leave the % sequence there but normalize it. */
+              g_string_append_c (decoded, *s);
+              g_string_append_c (decoded, g_ascii_toupper (s[1]));
+              g_string_append_c (decoded, g_ascii_toupper (s[2]));
+              s += 2;
             }
           else
             {
-              *d++ = c;
+              g_string_append_c (decoded, c);
               s += 2;
             }
         }
       else if (www_form && *s == '+')
-        *d++ = ' ';
+        g_string_append_c (decoded, ' ');
+      /* Normalize any illegal characters. */
+      else if (just_normalize && (!g_ascii_isgraph (*s)))
+        g_string_append_printf (decoded, "%%%02X", (guchar)*s);
       else
-        *d++ = *s;
+        g_string_append_c (decoded, *s);
     }
-  *d = '\0';
 
-  len = d - decoded;
+  len = decoded->len;
   g_assert (len >= 0);
 
   if (!(flags & G_URI_FLAGS_ENCODED) &&
-      !g_utf8_validate (decoded, len, &invalid))
+      !g_utf8_validate (decoded->str, len, &invalid))
     {
       g_set_error_literal (error, G_URI_ERROR, parse_error,
                            _("Non-UTF-8 characters in URI"));
-      g_free (decoded);
+      g_string_free (decoded, TRUE);
       return -1;
     }
 
   if (out)
-    *out = g_steal_pointer (&decoded);
+    *out = g_string_free (decoded, FALSE);
+  else
+    g_string_free (decoded, TRUE);
 
-  g_free (decoded);
   return len;
 }
 
@@ -414,7 +416,7 @@ _uri_encoder (GString      *out,
               const gchar  *reserved_chars_allowed,
               gboolean      allow_utf8)
 {
-  static const gchar hex[16] = "0123456789ABCDEF";
+  static const gchar hex[] = "0123456789ABCDEF";
   const guchar *p = start;
   const guchar *end = p + length;
 
@@ -596,9 +598,21 @@ parse_host (const gchar  *start,
     }
 
   if (g_hostname_is_non_ascii (decoded))
-    host = g_hostname_to_ascii (decoded);
+    {
+      host = g_hostname_to_ascii (decoded);
+      if (host == NULL)
+        {
+          g_free (decoded);
+          g_set_error (error, G_URI_ERROR, G_URI_ERROR_BAD_HOST,
+                       _("Illegal internationalized hostname ‘%.*s’ in URI"),
+                       (gint) length, start);
+          return FALSE;
+        }
+    }
   else
-    host = g_steal_pointer (&decoded);
+    {
+      host = g_steal_pointer (&decoded);
+    }
 
  ok:
   if (out)
@@ -741,6 +755,70 @@ uri_cleanup (const gchar *uri_string)
 }
 
 static gboolean
+should_normalize_empty_path (const char *scheme)
+{
+  const char * const schemes[] = { "https", "http", "wss", "ws" };
+  gsize i;
+  for (i = 0; i < G_N_ELEMENTS (schemes); ++i)
+    {
+      if (!strcmp (schemes[i], scheme))
+        return TRUE;
+    }
+  return FALSE;
+}
+
+static int
+normalize_port (const char *scheme,
+                int         port)
+{
+  const char *default_schemes[3] = { NULL };
+  int i;
+
+  switch (port)
+    {
+    case 21:
+      default_schemes[0] = "ftp";
+      break;
+    case 80:
+      default_schemes[0] = "http";
+      default_schemes[1] = "ws";
+      break;
+    case 443:
+      default_schemes[0] = "https";
+      default_schemes[1] = "wss";
+      break;
+    default:
+      break;
+    }
+
+  for (i = 0; default_schemes[i]; ++i)
+    {
+      if (!strcmp (scheme, default_schemes[i]))
+        return -1;
+    }
+
+  return port;
+}
+
+int
+g_uri_get_default_scheme_port (const char *scheme)
+{
+  if (strcmp (scheme, "http") == 0 || strcmp (scheme, "ws") == 0)
+    return 80;
+
+  if (strcmp (scheme, "https") == 0 || strcmp (scheme, "wss") == 0)
+    return 443;
+
+  if (strcmp (scheme, "ftp") == 0)
+    return 21;
+
+  if (strstr (scheme, "socks") == scheme)
+    return 1080;
+
+  return -1;
+}
+
+static gboolean
 g_uri_split_internal (const gchar  *uri_string,
                       GUriFlags     flags,
                       gchar       **scheme,
@@ -758,6 +836,7 @@ g_uri_split_internal (const gchar  *uri_string,
   const gchar *end, *colon, *at, *path_start, *semi, *question;
   const gchar *p, *bracket, *hostend;
   gchar *cleaned_uri_string = NULL;
+  gchar *normalized_scheme = NULL;
 
   if (scheme)
     *scheme = NULL;
@@ -795,8 +874,9 @@ g_uri_split_internal (const gchar  *uri_string,
 
   if (p > uri_string && *p == ':')
     {
+      normalized_scheme = g_ascii_strdown (uri_string, p - uri_string);
       if (scheme)
-        *scheme = g_ascii_strdown (uri_string, p - uri_string);
+        *scheme = g_steal_pointer (&normalized_scheme);
       p++;
     }
   else
@@ -922,6 +1002,22 @@ g_uri_split_internal (const gchar  *uri_string,
                       G_URI_ERROR_BAD_PATH, error))
     goto fail;
 
+  /* Scheme-based normalization */
+  if (flags & G_URI_FLAGS_SCHEME_NORMALIZE && ((scheme && *scheme) || normalized_scheme))
+    {
+      const char *scheme_str = scheme && *scheme ? *scheme : normalized_scheme;
+
+      if (should_normalize_empty_path (scheme_str) && path && !**path)
+        {
+          g_free (*path);
+          *path = g_strdup ("/");
+        }
+
+      if (port && *port == -1)
+        *port = g_uri_get_default_scheme_port (scheme_str);
+    }
+
+  g_free (normalized_scheme);
   g_free (cleaned_uri_string);
   return TRUE;
 
@@ -941,6 +1037,7 @@ g_uri_split_internal (const gchar  *uri_string,
   if (fragment)
     g_clear_pointer (fragment, g_free);
 
+  g_free (normalized_scheme);
   g_free (cleaned_uri_string);
   return FALSE;
 }
@@ -966,7 +1063,7 @@ g_uri_split_internal (const gchar  *uri_string,
  * @error: #GError for error reporting, or %NULL to ignore.
  *
  * Parses @uri_ref (which can be an
- * [absolute or relative URI][relative-absolute-uris]) according to @flags, and
+ * [absolute or relative URI](#relative-and-absolute-uris)) according to @flags, and
  * returns the pieces. Any component that doesn't appear in @uri_ref will be
  * returned as %NULL (but note that all URIs always have a path component,
  * though it may be the empty string).
@@ -1033,7 +1130,7 @@ g_uri_split (const gchar  *uri_ref,
  * @error: #GError for error reporting, or %NULL to ignore.
  *
  * Parses @uri_ref (which can be an
- * [absolute or relative URI][relative-absolute-uris]) according to @flags, and
+ * [absolute or relative URI](#relative-and-absolute-uris)) according to @flags, and
  * returns the pieces. Any component that doesn't appear in @uri_ref will be
  * returned as %NULL (but note that all URIs always have a path component,
  * though it may be the empty string).
@@ -1085,7 +1182,7 @@ g_uri_split_with_user (const gchar  *uri_ref,
  *    port, or `-1`
  * @error: #GError for error reporting, or %NULL to ignore.
  *
- * Parses @uri_string (which must be an [absolute URI][relative-absolute-uris])
+ * Parses @uri_string (which must be an [absolute URI](#relative-and-absolute-uris))
  * according to @flags, and returns the pieces relevant to connecting to a host.
  * See the documentation for g_uri_split() for more details; this is
  * mostly a wrapper around that function with simpler arguments.
@@ -1154,7 +1251,7 @@ g_uri_split_network (const gchar  *uri_string,
  * @error: #GError for error reporting, or %NULL to ignore.
  *
  * Parses @uri_string according to @flags, to determine whether it is a valid
- * [absolute URI][relative-absolute-uris], i.e. it does not need to be resolved
+ * [absolute URI](#relative-and-absolute-uris), i.e. it does not need to be resolved
  * relative to another URI using g_uri_parse_relative().
  *
  * If it’s not a valid URI, an error is returned explaining how it’s invalid.
@@ -1196,68 +1293,93 @@ g_uri_is_valid (const gchar  *uri_string,
 }
 
 
-/* This does the "Remove Dot Segments" algorithm from section 5.2.4 of
- * RFC 3986, except that @path is modified in place.
+/* Implements the "Remove Dot Segments" algorithm from section 5.2.4 of
+ * RFC 3986.
  *
  * See https://tools.ietf.org/html/rfc3986#section-5.2.4
  */
 static void
 remove_dot_segments (gchar *path)
 {
-  gchar *p, *q;
+  /* The output can be written to the same buffer that the input
+   * is read from, as the output pointer is only ever increased
+   * when the input pointer is increased as well, and the input
+   * pointer is never decreased. */
+  gchar *input = path;
+  gchar *output = path;
 
   if (!*path)
     return;
 
-  /* Remove "./" where "." is a complete segment. */
-  for (p = path + 1; *p; )
+  while (*input)
     {
-      if (*(p - 1) == '/' &&
-          *p == '.' && *(p + 1) == '/')
-        memmove (p, p + 2, strlen (p + 2) + 1);
+      /*  A.  If the input buffer begins with a prefix of "../" or "./",
+       *      then remove that prefix from the input buffer; otherwise,
+       */
+      if (strncmp (input, "../", 3) == 0)
+        input += 3;
+      else if (strncmp (input, "./", 2) == 0)
+        input += 2;
+
+      /*  B.  if the input buffer begins with a prefix of "/./" or "/.",
+       *      where "." is a complete path segment, then replace that
+       *      prefix with "/" in the input buffer; otherwise,
+       */
+      else if (strncmp (input, "/./", 3) == 0)
+        input += 2;
+      else if (strcmp (input, "/.") == 0)
+        input[1] = '\0';
+
+      /*  C.  if the input buffer begins with a prefix of "/../" or "/..",
+       *      where ".." is a complete path segment, then replace that
+       *      prefix with "/" in the input buffer and remove the last
+       *      segment and its preceding "/" (if any) from the output
+       *      buffer; otherwise,
+       */
+      else if (strncmp (input, "/../", 4) == 0)
+        {
+          input += 3;
+          if (output > path)
+            {
+              do
+                {
+                  output--;
+                }
+              while (*output != '/' && output > path);
+            }
+        }
+      else if (strcmp (input, "/..") == 0)
+        {
+          input[1] = '\0';
+          if (output > path)
+            {
+              do
+                 {
+                   output--;
+                 }
+              while (*output != '/' && output > path);
+            }
+        }
+
+      /*  D.  if the input buffer consists only of "." or "..", then remove
+       *      that from the input buffer; otherwise,
+       */
+      else if (strcmp (input, "..") == 0 || strcmp (input, ".") == 0)
+        input[0] = '\0';
+
+      /*  E.  move the first path segment in the input buffer to the end of
+       *      the output buffer, including the initial "/" character (if
+       *      any) and any subsequent characters up to, but not including,
+       *      the next "/" character or the end of the input buffer.
+       */
       else
-        p++;
-    }
-  /* Remove "." at end. */
-  if (p > path + 2 &&
-      *(p - 1) == '.' && *(p - 2) == '/')
-    *(p - 1) = '\0';
-
-  /* Remove "<segment>/../" where <segment> != ".." */
-  for (p = path + 1; *p; )
-    {
-      if (!strncmp (p, "../", 3))
         {
-          p += 3;
-          continue;
+          *output++ = *input++;
+          while (*input && *input != '/')
+            *output++ = *input++;
         }
-      q = strchr (p + 1, '/');
-      if (!q)
-        break;
-      if (strncmp (q, "/../", 4) != 0)
-        {
-          p = q + 1;
-          continue;
-        }
-      memmove (p, q + 4, strlen (q + 4) + 1);
-      p = path + 1;
     }
-  /* Remove "<segment>/.." at end where <segment> != ".." */
-  q = strrchr (path, '/');
-  if (q && q != path && !strcmp (q, "/.."))
-    {
-      p = q - 1;
-      while (p > path && *p != '/')
-        p--;
-      if (strncmp (p, "/../", 4) != 0)
-        *(p + 1) = 0;
-    }
-
-  /* Remove extraneous initial "/.."s */
-  while (!strncmp (path, "/../", 4))
-    memmove (path, path + 3, strlen (path) - 2);
-  if (!strcmp (path, "/.."))
-    path[1] = '\0';
+  *output = '\0';
 }
 
 /**
@@ -1267,7 +1389,7 @@ remove_dot_segments (gchar *path)
  * @error: #GError for error reporting, or %NULL to ignore.
  *
  * Parses @uri_string according to @flags. If the result is not a
- * valid [absolute URI][relative-absolute-uris], it will be discarded, and an
+ * valid [absolute URI](#relative-and-absolute-uris), it will be discarded, and an
  * error returned.
  *
  * Return value: (transfer full): a new #GUri, or NULL on error.
@@ -1293,7 +1415,7 @@ g_uri_parse (const gchar  *uri_string,
  * @error: #GError for error reporting, or %NULL to ignore.
  *
  * Parses @uri_ref according to @flags and, if it is a
- * [relative URI][relative-absolute-uris], resolves it relative to @base_uri.
+ * [relative URI](#relative-and-absolute-uris), resolves it relative to @base_uri.
  * If the result is not a valid absolute URI, it will be discarded, and an error
  * returned.
  *
@@ -1394,6 +1516,23 @@ g_uri_parse_relative (GUri         *base_uri,
               uri->port = base_uri->port;
             }
         }
+
+      /* Scheme normalization couldn't have been done earlier
+       * as the relative URI may not have had a scheme */
+      if (flags & G_URI_FLAGS_SCHEME_NORMALIZE)
+        {
+          if (should_normalize_empty_path (uri->scheme) && !*uri->path)
+            {
+              g_free (uri->path);
+              uri->path = g_strdup ("/");
+            }
+
+          uri->port = normalize_port (uri->scheme, uri->port);
+        }
+    }
+  else
+    {
+      remove_dot_segments (uri->path);
     }
 
   return g_steal_pointer (&uri);
@@ -1407,7 +1546,7 @@ g_uri_parse_relative (GUri         *base_uri,
  * @error: #GError for error reporting, or %NULL to ignore.
  *
  * Parses @uri_ref according to @flags and, if it is a
- * [relative URI][relative-absolute-uris], resolves it relative to
+ * [relative URI](#relative-and-absolute-uris), resolves it relative to
  * @base_uri_string. If the result is not a valid absolute URI, it will be
  * discarded, and an error returned.
  *
@@ -1482,6 +1621,7 @@ g_uri_join_internal (GUriFlags    flags,
 {
   gboolean encoded = (flags & G_URI_FLAGS_ENCODED);
   GString *str;
+  char *normalized_scheme = NULL;
 
   /* Restrictions on path prefixes. See:
    * https://tools.ietf.org/html/rfc3986#section-3
@@ -1490,9 +1630,20 @@ g_uri_join_internal (GUriFlags    flags,
   g_return_val_if_fail (host == NULL || (path[0] == '\0' || path[0] == '/'), NULL);
   g_return_val_if_fail (host != NULL || (path[0] != '/' || path[1] != '/'), NULL);
 
-  str = g_string_new (scheme);
+  /* Arbitrarily chosen default size which should handle most average length
+   * URIs. This should avoid a few reallocations of the buffer in most cases.
+   * It’s 1B shorter than a power of two, since GString will add a
+   * nul-terminator byte. */
+  str = g_string_sized_new (127);
+
   if (scheme)
-    g_string_append_c (str, ':');
+    {
+      g_string_append (str, scheme);
+      g_string_append_c (str, ':');
+    }
+
+  if (flags & G_URI_FLAGS_SCHEME_NORMALIZE && scheme && ((host && port != -1) || path[0] == '\0'))
+    normalized_scheme = g_ascii_strdown (scheme, -1);
 
   if (host)
     {
@@ -1554,14 +1705,18 @@ g_uri_join_internal (GUriFlags    flags,
             g_string_append_uri_escaped (str, host, HOST_ALLOWED_CHARS, TRUE);
         }
 
-      if (port != -1)
+      if (port != -1 && (!normalized_scheme || normalize_port (normalized_scheme, port) != -1))
         g_string_append_printf (str, ":%d", port);
     }
 
-  if (encoded || flags & G_URI_FLAGS_ENCODED_PATH)
+  if (path[0] == '\0' && normalized_scheme && should_normalize_empty_path (normalized_scheme))
+    g_string_append (str, "/");
+  else if (encoded || flags & G_URI_FLAGS_ENCODED_PATH)
     g_string_append (str, path);
   else
     g_string_append_uri_escaped (str, path, PATH_ALLOWED_CHARS, TRUE);
+
+  g_free (normalized_scheme);
 
   if (query)
     {
@@ -1600,7 +1755,7 @@ g_uri_join_internal (GUriFlags    flags,
  *
  * When @host is present, @path must either be empty or begin with a slash (`/`)
  * character. When @host is not present, @path cannot begin with two slash
-   characters (`//`). See
+ * characters (`//`). See
  * [RFC 3986, section 3](https://tools.ietf.org/html/rfc3986#section-3).
  *
  * See also g_uri_join_with_user(), which allows specifying the
@@ -2319,7 +2474,7 @@ g_uri_get_auth_params (GUri *uri)
  * be a scope ID attached to the address. Eg, `fe80::1234%``em1` (or
  * `fe80::1234%``25em1` if the string is still encoded).
  *
- * Return value: (not nullable): @uri's host.
+ * Return value: (nullable): @uri's host.
  *
  * Since: 2.66
  */
@@ -2345,6 +2500,9 @@ gint
 g_uri_get_port (GUri *uri)
 {
   g_return_val_if_fail (uri != NULL, -1);
+
+  if (uri->port == -1 && uri->flags & G_URI_FLAGS_SCHEME_NORMALIZE)
+    return g_uri_get_default_scheme_port (uri->scheme);
 
   return uri->port;
 }

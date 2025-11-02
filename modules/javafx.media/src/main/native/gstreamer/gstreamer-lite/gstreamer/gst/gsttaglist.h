@@ -205,7 +205,7 @@ GST_API
 GstTagList * gst_tag_list_new_empty         (void) G_GNUC_MALLOC;
 
 GST_API
-GstTagList * gst_tag_list_new               (const gchar * tag, ...) G_GNUC_MALLOC;
+GstTagList * gst_tag_list_new               (const gchar * tag, ...) G_GNUC_NULL_TERMINATED G_GNUC_MALLOC;
 
 GST_API
 GstTagList * gst_tag_list_new_valist        (va_list var_args) G_GNUC_MALLOC;
@@ -1118,6 +1118,18 @@ gboolean  gst_tag_list_take    (GstTagList ** old_taglist,
  * Since: 1.8
  */
 #define GST_TAG_PRIVATE_DATA                         "private-data"
+
+/**
+ * GST_TAG_CONTAINER_SPECIFIC_TRACK_ID:
+ *
+ * Unique identifier for the audio, video or text track this tag is associated
+ * with. The mappings for several container formats are defined in the [Sourcing
+ * In-band Media Resource Tracks from Media Containers into HTML
+ * specification](https://dev.w3.org/html5/html-sourcing-inband-tracks/).
+ *
+ * Since: 1.24
+ */
+#define GST_TAG_CONTAINER_SPECIFIC_TRACK_ID "container-specific-track-id"
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(GstTagList, gst_tag_list_unref)
 

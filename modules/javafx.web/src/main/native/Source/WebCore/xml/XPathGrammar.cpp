@@ -69,7 +69,6 @@
 #define yylval  xpathyylval
 #define yychar  xpathyychar
 #define yydebug xpathyydebug
-#define yynerrs xpathyynerrs
 
 
 /* Tokens.  */
@@ -126,8 +125,9 @@
 
 
 
+
 /* Copy the first part of user declarations.  */
-#line 28 "WebCore/xml/XPathGrammar.y"
+#line 28 "XPathGrammar.y"
 
 
 #include "config.h"
@@ -138,11 +138,7 @@
 #include "XPathStep.h"
 #include "XPathVariableReference.h"
 
-
-#if COMPILER(MSVC)
-// See https://msdn.microsoft.com/en-us/library/1wea5zwe.aspx
-#pragma warning(disable: 4701)
-#endif
+WTF_ALLOW_UNSAFE_BUFFER_USAGE_BEGIN
 
 #define YYMALLOC fastMalloc
 #define YYFREE fastFree
@@ -152,8 +148,6 @@
 #define YYDEBUG 0
 #define YYMAXDEPTH 10000
 
-using namespace WebCore;
-using namespace XPath;
 
 
 /* Enabling traces.  */
@@ -176,20 +170,20 @@ using namespace XPath;
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 60 "WebCore/xml/XPathGrammar.y"
+#line 59 "XPathGrammar.y"
 {
-    NumericOp::Opcode numericOpcode;
-    EqTestOp::Opcode equalityTestOpcode;
+    WebCore::XPath::NumericOp::Opcode numericOpcode;
+    WebCore::XPath::EqTestOp::Opcode equalityTestOpcode;
     StringImpl* string;
-    Step::Axis axis;
-    LocationPath* locationPath;
-    Step::NodeTest* nodeTest;
-    Vector<std::unique_ptr<Expression>>* expressionVector;
-    Step* step;
-    Expression* expression;
+    WebCore::XPath::Step::Axis axis;
+    WebCore::XPath::LocationPath* locationPath;
+    WebCore::XPath::Step::NodeTest* nodeTest;
+    Vector<std::unique_ptr<WebCore::XPath::Expression>>* expressionVector;
+    WebCore::XPath::Step* step;
+    WebCore::XPath::Expression* expression;
 }
 /* Line 193 of yacc.c.  */
-#line 190 "./XPathGrammar.cpp"
+#line 189 "XPathGrammar.cpp"
     YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
@@ -199,16 +193,16 @@ typedef union YYSTYPE
 
 
 /* Copy the second part of user declarations.  */
-#line 104 "WebCore/xml/XPathGrammar.y"
+#line 103 "XPathGrammar.y"
 
 
-static int xpathyylex(YYSTYPE* yylval, Parser& parser) { return parser.lex(*yylval); }
-static void xpathyyerror(Parser&, const char*) { }
+static int xpathyylex(YYSTYPE* yylval, WebCore::XPath::Parser& parser) { return parser.lex(*yylval); }
+static void xpathyyerror(WebCore::XPath::Parser&, const char*) { }
 
 
 
 /* Line 216 of yacc.c.  */
-#line 209 "./XPathGrammar.cpp"
+#line 208 "XPathGrammar.cpp"
 
 #ifdef short
 # undef short
@@ -515,13 +509,13 @@ static const yytype_int8 yyrhs[] =
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,   114,   114,   121,   125,   131,   135,   140,   145,   153,
-     159,   165,   174,   184,   202,   213,   231,   235,   237,   244,
-     249,   254,   259,   264,   273,   277,   281,   287,   295,   302,
-     309,   314,   321,   327,   332,   338,   344,   348,   356,   367,
-     373,   381,   385,   387,   394,   399,   401,   407,   416,   418,
-     426,   428,   435,   437,   444,   446,   453,   455,   462,   464,
-     469,   476,   478,   485,   487
+       0,   113,   113,   120,   124,   130,   134,   139,   144,   152,
+     158,   164,   173,   183,   201,   212,   230,   234,   236,   243,
+     248,   253,   258,   263,   274,   278,   282,   288,   296,   303,
+     310,   315,   322,   328,   333,   339,   345,   349,   357,   368,
+     374,   382,   386,   388,   395,   400,   402,   408,   417,   419,
+     427,   429,   436,   438,   445,   447,   454,   456,   463,   465,
+     470,   477,   479,   486,   488
 };
 #endif
 
@@ -533,7 +527,7 @@ static const char *const yytname[] =
   "$end", "error", "$undefined", "MULOP", "RELOP", "EQOP", "MINUS",
   "PLUS", "AND", "OR", "FUNCTIONNAME", "LITERAL", "NAMETEST", "NUMBER",
   "NODETYPE", "VARIABLEREFERENCE", "AXISNAME", "COMMENT", "DOTDOT", "PI",
-  "NODE", "SLASHSLASH", "TEXT", "XPATH_ERROR", "'/'", "'@'", "'('", "')'",
+  "NODE", "SLASHSLASH", "TEXT_", "XPATH_ERROR", "'/'", "'@'", "'('", "')'",
   "'['", "']'", "'.'", "','", "'|'", "$accept", "Top", "Expr",
   "LocationPath", "AbsoluteLocationPath", "RelativeLocationPath", "Step",
   "AxisSpecifier", "NodeTest", "OptionalPredicateList", "PredicateList",
@@ -814,14 +808,14 @@ do {                                      \
 #if (defined __STDC__ || defined __C99__FUNC__ \
      || defined __cplusplus || defined _MSC_VER)
 static void
-yy_symbol_value_print (FILE *yyoutput, int yytype, YYSTYPE const * const yyvaluep, Parser& parser)
+yy_symbol_value_print (FILE *yyoutput, int yytype, YYSTYPE const * const yyvaluep, WebCore::XPath::Parser& parser)
 #else
 static void
 yy_symbol_value_print (yyoutput, yytype, yyvaluep, parser)
     FILE *yyoutput;
     int yytype;
     YYSTYPE const * const yyvaluep;
-    Parser& parser;
+    WebCore::XPath::Parser& parser;
 #endif
 {
   if (!yyvaluep)
@@ -848,14 +842,14 @@ yy_symbol_value_print (yyoutput, yytype, yyvaluep, parser)
 #if (defined __STDC__ || defined __C99__FUNC__ \
      || defined __cplusplus || defined _MSC_VER)
 static void
-yy_symbol_print (FILE *yyoutput, int yytype, YYSTYPE const * const yyvaluep, Parser& parser)
+yy_symbol_print (FILE *yyoutput, int yytype, YYSTYPE const * const yyvaluep, WebCore::XPath::Parser& parser)
 #else
 static void
 yy_symbol_print (yyoutput, yytype, yyvaluep, parser)
     FILE *yyoutput;
     int yytype;
     YYSTYPE const * const yyvaluep;
-    Parser& parser;
+    WebCore::XPath::Parser& parser;
 #endif
 {
   if (yytype < YYNTOKENS)
@@ -903,13 +897,13 @@ do {                                \
 #if (defined __STDC__ || defined __C99__FUNC__ \
      || defined __cplusplus || defined _MSC_VER)
 static void
-yy_reduce_print (YYSTYPE *yyvsp, int yyrule, Parser& parser)
+yy_reduce_print (YYSTYPE *yyvsp, int yyrule, WebCore::XPath::Parser& parser)
 #else
 static void
 yy_reduce_print (yyvsp, yyrule, parser)
     YYSTYPE *yyvsp;
     int yyrule;
-    Parser& parser;
+    WebCore::XPath::Parser& parser;
 #endif
 {
   int yynrhs = yyr2[yyrule];
@@ -1182,14 +1176,14 @@ yysyntax_error (char *yyresult, int yystate, int yychar)
 #if (defined __STDC__ || defined __C99__FUNC__ \
      || defined __cplusplus || defined _MSC_VER)
 static void
-yydestruct (const char *yymsg, int yytype, YYSTYPE *yyvaluep, Parser& parser)
+yydestruct (const char *yymsg, int yytype, YYSTYPE *yyvaluep, WebCore::XPath::Parser& parser)
 #else
 static void
 yydestruct (yymsg, yytype, yyvaluep, parser)
     const char *yymsg;
     int yytype;
     YYSTYPE *yyvaluep;
-    Parser& parser;
+    WebCore::XPath::Parser& parser;
 #endif
 {
   YYUSE (yyvaluep);
@@ -1202,159 +1196,159 @@ yydestruct (yymsg, yytype, yyvaluep, parser)
   switch (yytype)
     {
       case 10: /* "FUNCTIONNAME" */
-#line 80 "WebCore/xml/XPathGrammar.y"
+#line 79 "XPathGrammar.y"
     { if ((yyvaluep->string)) (yyvaluep->string)->deref(); };
-#line 1205 "./XPathGrammar.cpp"
+#line 1204 "XPathGrammar.cpp"
     break;
       case 11: /* "LITERAL" */
-#line 80 "WebCore/xml/XPathGrammar.y"
+#line 79 "XPathGrammar.y"
     { if ((yyvaluep->string)) (yyvaluep->string)->deref(); };
-#line 1210 "./XPathGrammar.cpp"
+#line 1209 "XPathGrammar.cpp"
     break;
       case 12: /* "NAMETEST" */
-#line 80 "WebCore/xml/XPathGrammar.y"
+#line 79 "XPathGrammar.y"
     { if ((yyvaluep->string)) (yyvaluep->string)->deref(); };
-#line 1215 "./XPathGrammar.cpp"
+#line 1214 "XPathGrammar.cpp"
     break;
       case 13: /* "NUMBER" */
-#line 80 "WebCore/xml/XPathGrammar.y"
+#line 79 "XPathGrammar.y"
     { if ((yyvaluep->string)) (yyvaluep->string)->deref(); };
-#line 1220 "./XPathGrammar.cpp"
+#line 1219 "XPathGrammar.cpp"
     break;
       case 14: /* "NODETYPE" */
-#line 80 "WebCore/xml/XPathGrammar.y"
+#line 79 "XPathGrammar.y"
     { if ((yyvaluep->string)) (yyvaluep->string)->deref(); };
-#line 1225 "./XPathGrammar.cpp"
+#line 1224 "XPathGrammar.cpp"
     break;
       case 15: /* "VARIABLEREFERENCE" */
-#line 80 "WebCore/xml/XPathGrammar.y"
+#line 79 "XPathGrammar.y"
     { if ((yyvaluep->string)) (yyvaluep->string)->deref(); };
-#line 1230 "./XPathGrammar.cpp"
+#line 1229 "XPathGrammar.cpp"
     break;
       case 35: /* "Expr" */
-#line 100 "WebCore/xml/XPathGrammar.y"
+#line 99 "XPathGrammar.y"
     { delete (yyvaluep->expression); };
-#line 1235 "./XPathGrammar.cpp"
+#line 1234 "XPathGrammar.cpp"
     break;
       case 36: /* "LocationPath" */
-#line 88 "WebCore/xml/XPathGrammar.y"
+#line 87 "XPathGrammar.y"
     { delete (yyvaluep->locationPath); };
-#line 1240 "./XPathGrammar.cpp"
+#line 1239 "XPathGrammar.cpp"
     break;
       case 37: /* "AbsoluteLocationPath" */
-#line 88 "WebCore/xml/XPathGrammar.y"
+#line 87 "XPathGrammar.y"
     { delete (yyvaluep->locationPath); };
-#line 1245 "./XPathGrammar.cpp"
+#line 1244 "XPathGrammar.cpp"
     break;
       case 38: /* "RelativeLocationPath" */
-#line 88 "WebCore/xml/XPathGrammar.y"
+#line 87 "XPathGrammar.y"
     { delete (yyvaluep->locationPath); };
-#line 1250 "./XPathGrammar.cpp"
+#line 1249 "XPathGrammar.cpp"
     break;
       case 39: /* "Step" */
-#line 97 "WebCore/xml/XPathGrammar.y"
+#line 96 "XPathGrammar.y"
     { delete (yyvaluep->step); };
-#line 1255 "./XPathGrammar.cpp"
+#line 1254 "XPathGrammar.cpp"
     break;
       case 41: /* "NodeTest" */
-#line 91 "WebCore/xml/XPathGrammar.y"
+#line 90 "XPathGrammar.y"
     { delete (yyvaluep->nodeTest); };
-#line 1260 "./XPathGrammar.cpp"
+#line 1259 "XPathGrammar.cpp"
     break;
       case 42: /* "OptionalPredicateList" */
-#line 94 "WebCore/xml/XPathGrammar.y"
+#line 93 "XPathGrammar.y"
     { delete (yyvaluep->expressionVector); };
-#line 1265 "./XPathGrammar.cpp"
+#line 1264 "XPathGrammar.cpp"
     break;
       case 43: /* "PredicateList" */
-#line 94 "WebCore/xml/XPathGrammar.y"
+#line 93 "XPathGrammar.y"
     { delete (yyvaluep->expressionVector); };
-#line 1270 "./XPathGrammar.cpp"
+#line 1269 "XPathGrammar.cpp"
     break;
       case 44: /* "Predicate" */
-#line 100 "WebCore/xml/XPathGrammar.y"
+#line 99 "XPathGrammar.y"
     { delete (yyvaluep->expression); };
-#line 1275 "./XPathGrammar.cpp"
+#line 1274 "XPathGrammar.cpp"
     break;
       case 45: /* "DescendantOrSelf" */
-#line 97 "WebCore/xml/XPathGrammar.y"
+#line 96 "XPathGrammar.y"
     { delete (yyvaluep->step); };
-#line 1280 "./XPathGrammar.cpp"
+#line 1279 "XPathGrammar.cpp"
     break;
       case 46: /* "AbbreviatedStep" */
-#line 97 "WebCore/xml/XPathGrammar.y"
+#line 96 "XPathGrammar.y"
     { delete (yyvaluep->step); };
-#line 1285 "./XPathGrammar.cpp"
+#line 1284 "XPathGrammar.cpp"
     break;
       case 47: /* "PrimaryExpr" */
-#line 100 "WebCore/xml/XPathGrammar.y"
+#line 99 "XPathGrammar.y"
     { delete (yyvaluep->expression); };
-#line 1290 "./XPathGrammar.cpp"
+#line 1289 "XPathGrammar.cpp"
     break;
       case 48: /* "FunctionCall" */
-#line 100 "WebCore/xml/XPathGrammar.y"
+#line 99 "XPathGrammar.y"
     { delete (yyvaluep->expression); };
-#line 1295 "./XPathGrammar.cpp"
+#line 1294 "XPathGrammar.cpp"
     break;
       case 49: /* "ArgumentList" */
-#line 94 "WebCore/xml/XPathGrammar.y"
+#line 93 "XPathGrammar.y"
     { delete (yyvaluep->expressionVector); };
-#line 1300 "./XPathGrammar.cpp"
+#line 1299 "XPathGrammar.cpp"
     break;
       case 50: /* "Argument" */
-#line 100 "WebCore/xml/XPathGrammar.y"
+#line 99 "XPathGrammar.y"
     { delete (yyvaluep->expression); };
-#line 1305 "./XPathGrammar.cpp"
+#line 1304 "XPathGrammar.cpp"
     break;
       case 51: /* "UnionExpr" */
-#line 100 "WebCore/xml/XPathGrammar.y"
+#line 99 "XPathGrammar.y"
     { delete (yyvaluep->expression); };
-#line 1310 "./XPathGrammar.cpp"
+#line 1309 "XPathGrammar.cpp"
     break;
       case 52: /* "PathExpr" */
-#line 100 "WebCore/xml/XPathGrammar.y"
+#line 99 "XPathGrammar.y"
     { delete (yyvaluep->expression); };
-#line 1315 "./XPathGrammar.cpp"
+#line 1314 "XPathGrammar.cpp"
     break;
       case 53: /* "FilterExpr" */
-#line 100 "WebCore/xml/XPathGrammar.y"
+#line 99 "XPathGrammar.y"
     { delete (yyvaluep->expression); };
-#line 1320 "./XPathGrammar.cpp"
+#line 1319 "XPathGrammar.cpp"
     break;
       case 54: /* "OrExpr" */
-#line 100 "WebCore/xml/XPathGrammar.y"
+#line 99 "XPathGrammar.y"
     { delete (yyvaluep->expression); };
-#line 1325 "./XPathGrammar.cpp"
+#line 1324 "XPathGrammar.cpp"
     break;
       case 55: /* "AndExpr" */
-#line 100 "WebCore/xml/XPathGrammar.y"
+#line 99 "XPathGrammar.y"
     { delete (yyvaluep->expression); };
-#line 1330 "./XPathGrammar.cpp"
+#line 1329 "XPathGrammar.cpp"
     break;
       case 56: /* "EqualityExpr" */
-#line 100 "WebCore/xml/XPathGrammar.y"
+#line 99 "XPathGrammar.y"
     { delete (yyvaluep->expression); };
-#line 1335 "./XPathGrammar.cpp"
+#line 1334 "XPathGrammar.cpp"
     break;
       case 57: /* "RelationalExpr" */
-#line 100 "WebCore/xml/XPathGrammar.y"
+#line 99 "XPathGrammar.y"
     { delete (yyvaluep->expression); };
-#line 1340 "./XPathGrammar.cpp"
+#line 1339 "XPathGrammar.cpp"
     break;
       case 58: /* "AdditiveExpr" */
-#line 100 "WebCore/xml/XPathGrammar.y"
+#line 99 "XPathGrammar.y"
     { delete (yyvaluep->expression); };
-#line 1345 "./XPathGrammar.cpp"
+#line 1344 "XPathGrammar.cpp"
     break;
       case 59: /* "MultiplicativeExpr" */
-#line 100 "WebCore/xml/XPathGrammar.y"
+#line 99 "XPathGrammar.y"
     { delete (yyvaluep->expression); };
-#line 1350 "./XPathGrammar.cpp"
+#line 1349 "XPathGrammar.cpp"
     break;
       case 60: /* "UnaryExpr" */
-#line 100 "WebCore/xml/XPathGrammar.y"
+#line 99 "XPathGrammar.y"
     { delete (yyvaluep->expression); };
-#line 1355 "./XPathGrammar.cpp"
+#line 1354 "XPathGrammar.cpp"
     break;
 
       default:
@@ -1373,7 +1367,7 @@ int yyparse ();
 #endif
 #else /* ! YYPARSE_PARAM */
 #if defined __STDC__ || defined __cplusplus
-int yyparse (Parser& parser);
+int yyparse (WebCore::XPath::Parser& parser);
 #else
 int yyparse ();
 #endif
@@ -1402,11 +1396,11 @@ yyparse (YYPARSE_PARAM)
 #if (defined __STDC__ || defined __C99__FUNC__ \
      || defined __cplusplus || defined _MSC_VER)
 int
-yyparse (Parser& parser)
+yyparse (WebCore::XPath::Parser& parser)
 #else
 int
 yyparse (parser)
-    Parser& parser;
+    WebCore::XPath::Parser& parser;
 #endif
 #endif
 {
@@ -1417,7 +1411,6 @@ int yychar;
 YYSTYPE yylval;
 
 /* Number of syntax errors so far.  */
-int yynerrs;
 
   int yystate;
   int yyn;
@@ -1470,7 +1463,6 @@ int yynerrs;
 
   yystate = 0;
   yyerrstatus = 0;
-  yynerrs = 0;
   yychar = YYEMPTY;        /* Cause a token to be read.  */
 
   /* Initialize stack pointers.
@@ -1663,14 +1655,14 @@ yyreduce:
   switch (yyn)
     {
         case 2:
-#line 115 "WebCore/xml/XPathGrammar.y"
+#line 114 "XPathGrammar.y"
     {
-        parser.setParseResult(std::unique_ptr<Expression>((yyvsp[(1) - (1)].expression)));
+        parser.setParseResult(std::unique_ptr<WebCore::XPath::Expression>((yyvsp[(1) - (1)].expression)));
     ;}
     break;
 
   case 4:
-#line 126 "WebCore/xml/XPathGrammar.y"
+#line 125 "XPathGrammar.y"
     {
         (yyval.locationPath) = (yyvsp[(1) - (1)].locationPath);
         (yyval.locationPath)->setAbsolute();
@@ -1678,377 +1670,379 @@ yyreduce:
     break;
 
   case 6:
-#line 136 "WebCore/xml/XPathGrammar.y"
+#line 135 "XPathGrammar.y"
     {
-        (yyval.locationPath) = new LocationPath;
+        (yyval.locationPath) = new WebCore::XPath::LocationPath;
     ;}
     break;
 
   case 7:
-#line 141 "WebCore/xml/XPathGrammar.y"
+#line 140 "XPathGrammar.y"
     {
         (yyval.locationPath) = (yyvsp[(2) - (2)].locationPath);
     ;}
     break;
 
   case 8:
-#line 146 "WebCore/xml/XPathGrammar.y"
+#line 145 "XPathGrammar.y"
     {
         (yyval.locationPath) = (yyvsp[(2) - (2)].locationPath);
-        (yyval.locationPath)->prependStep(std::unique_ptr<Step>((yyvsp[(1) - (2)].step)));
+        (yyval.locationPath)->prependStep(std::unique_ptr<WebCore::XPath::Step>((yyvsp[(1) - (2)].step)));
     ;}
     break;
 
   case 9:
-#line 154 "WebCore/xml/XPathGrammar.y"
+#line 153 "XPathGrammar.y"
     {
-        (yyval.locationPath) = new LocationPath;
-        (yyval.locationPath)->appendStep(std::unique_ptr<Step>((yyvsp[(1) - (1)].step)));
+        (yyval.locationPath) = new WebCore::XPath::LocationPath;
+        (yyval.locationPath)->appendStep(std::unique_ptr<WebCore::XPath::Step>((yyvsp[(1) - (1)].step)));
     ;}
     break;
 
   case 10:
-#line 160 "WebCore/xml/XPathGrammar.y"
+#line 159 "XPathGrammar.y"
     {
         (yyval.locationPath) = (yyvsp[(1) - (3)].locationPath);
-        (yyval.locationPath)->appendStep(std::unique_ptr<Step>((yyvsp[(3) - (3)].step)));
+        (yyval.locationPath)->appendStep(std::unique_ptr<WebCore::XPath::Step>((yyvsp[(3) - (3)].step)));
     ;}
     break;
 
   case 11:
-#line 166 "WebCore/xml/XPathGrammar.y"
+#line 165 "XPathGrammar.y"
     {
         (yyval.locationPath) = (yyvsp[(1) - (3)].locationPath);
-        (yyval.locationPath)->appendStep(std::unique_ptr<Step>((yyvsp[(2) - (3)].step)));
-        (yyval.locationPath)->appendStep(std::unique_ptr<Step>((yyvsp[(3) - (3)].step)));
+        (yyval.locationPath)->appendStep(std::unique_ptr<WebCore::XPath::Step>((yyvsp[(2) - (3)].step)));
+        (yyval.locationPath)->appendStep(std::unique_ptr<WebCore::XPath::Step>((yyvsp[(3) - (3)].step)));
     ;}
     break;
 
   case 12:
-#line 175 "WebCore/xml/XPathGrammar.y"
+#line 174 "XPathGrammar.y"
     {
-        std::unique_ptr<Step::NodeTest> nodeTest((yyvsp[(1) - (2)].nodeTest));
-        std::unique_ptr<Vector<std::unique_ptr<Expression>>> predicateList((yyvsp[(2) - (2)].expressionVector));
+        std::unique_ptr<WebCore::XPath::Step::NodeTest> nodeTest((yyvsp[(1) - (2)].nodeTest));
+        std::unique_ptr<Vector<std::unique_ptr<WebCore::XPath::Expression>>> predicateList((yyvsp[(2) - (2)].expressionVector));
         if (predicateList)
-            (yyval.step) = new Step(Step::ChildAxis, WTFMove(*nodeTest), WTFMove(*predicateList));
+            (yyval.step) = new WebCore::XPath::Step(WebCore::XPath::Step::ChildAxis, WTFMove(*nodeTest), WTFMove(*predicateList));
         else
-            (yyval.step) = new Step(Step::ChildAxis, WTFMove(*nodeTest));
+            (yyval.step) = new WebCore::XPath::Step(WebCore::XPath::Step::ChildAxis, WTFMove(*nodeTest));
     ;}
     break;
 
   case 13:
-#line 185 "WebCore/xml/XPathGrammar.y"
+#line 184 "XPathGrammar.y"
     {
         String nametest = adoptRef((yyvsp[(1) - (2)].string));
-        std::unique_ptr<Vector<std::unique_ptr<Expression>>> predicateList((yyvsp[(2) - (2)].expressionVector));
+        std::unique_ptr<Vector<std::unique_ptr<WebCore::XPath::Expression>>> predicateList((yyvsp[(2) - (2)].expressionVector));
 
-        String localName;
-        String namespaceURI;
+        AtomString localName;
+        AtomString namespaceURI;
         if (!parser.expandQualifiedName(nametest, localName, namespaceURI)) {
             (yyval.step) = nullptr;
             YYABORT;
         }
 
         if (predicateList)
-            (yyval.step) = new Step(Step::ChildAxis, Step::NodeTest(Step::NodeTest::NameTest, localName, namespaceURI), WTFMove(*predicateList));
+            (yyval.step) = new WebCore::XPath::Step(WebCore::XPath::Step::ChildAxis, WebCore::XPath::Step::NodeTest(WebCore::XPath::Step::NodeTest::NameTest, localName, namespaceURI), WTFMove(*predicateList));
         else
-            (yyval.step) = new Step(Step::ChildAxis, Step::NodeTest(Step::NodeTest::NameTest, localName, namespaceURI));
+            (yyval.step) = new WebCore::XPath::Step(WebCore::XPath::Step::ChildAxis, WebCore::XPath::Step::NodeTest(WebCore::XPath::Step::NodeTest::NameTest, localName, namespaceURI));
     ;}
     break;
 
   case 14:
-#line 203 "WebCore/xml/XPathGrammar.y"
+#line 202 "XPathGrammar.y"
     {
-        std::unique_ptr<Step::NodeTest> nodeTest((yyvsp[(2) - (3)].nodeTest));
-        std::unique_ptr<Vector<std::unique_ptr<Expression>>> predicateList((yyvsp[(3) - (3)].expressionVector));
+        std::unique_ptr<WebCore::XPath::Step::NodeTest> nodeTest((yyvsp[(2) - (3)].nodeTest));
+        std::unique_ptr<Vector<std::unique_ptr<WebCore::XPath::Expression>>> predicateList((yyvsp[(3) - (3)].expressionVector));
 
         if (predicateList)
-            (yyval.step) = new Step((yyvsp[(1) - (3)].axis), WTFMove(*nodeTest), WTFMove(*predicateList));
+            (yyval.step) = new WebCore::XPath::Step((yyvsp[(1) - (3)].axis), WTFMove(*nodeTest), WTFMove(*predicateList));
         else
-            (yyval.step) = new Step((yyvsp[(1) - (3)].axis), WTFMove(*nodeTest));
+            (yyval.step) = new WebCore::XPath::Step((yyvsp[(1) - (3)].axis), WTFMove(*nodeTest));
     ;}
     break;
 
   case 15:
-#line 214 "WebCore/xml/XPathGrammar.y"
+#line 213 "XPathGrammar.y"
     {
         String nametest = adoptRef((yyvsp[(2) - (3)].string));
-        std::unique_ptr<Vector<std::unique_ptr<Expression>>> predicateList((yyvsp[(3) - (3)].expressionVector));
+        std::unique_ptr<Vector<std::unique_ptr<WebCore::XPath::Expression>>> predicateList((yyvsp[(3) - (3)].expressionVector));
 
-        String localName;
-        String namespaceURI;
+        AtomString localName;
+        AtomString namespaceURI;
         if (!parser.expandQualifiedName(nametest, localName, namespaceURI)) {
             (yyval.step) = nullptr;
             YYABORT;
         }
 
         if (predicateList)
-            (yyval.step) = new Step((yyvsp[(1) - (3)].axis), Step::NodeTest(Step::NodeTest::NameTest, localName, namespaceURI), WTFMove(*predicateList));
+            (yyval.step) = new WebCore::XPath::Step((yyvsp[(1) - (3)].axis), WebCore::XPath::Step::NodeTest(WebCore::XPath::Step::NodeTest::NameTest, localName, namespaceURI), WTFMove(*predicateList));
         else
-            (yyval.step) = new Step((yyvsp[(1) - (3)].axis), Step::NodeTest(Step::NodeTest::NameTest, localName, namespaceURI));
+            (yyval.step) = new WebCore::XPath::Step((yyvsp[(1) - (3)].axis), WebCore::XPath::Step::NodeTest(WebCore::XPath::Step::NodeTest::NameTest, localName, namespaceURI));
     ;}
     break;
 
   case 18:
-#line 238 "WebCore/xml/XPathGrammar.y"
+#line 237 "XPathGrammar.y"
     {
-        (yyval.axis) = Step::AttributeAxis;
+        (yyval.axis) = WebCore::XPath::Step::AttributeAxis;
     ;}
     break;
 
   case 19:
-#line 245 "WebCore/xml/XPathGrammar.y"
+#line 244 "XPathGrammar.y"
     {
-        (yyval.nodeTest) = new Step::NodeTest(Step::NodeTest::AnyNodeTest);
+        (yyval.nodeTest) = new WebCore::XPath::Step::NodeTest(WebCore::XPath::Step::NodeTest::AnyNodeTest);
     ;}
     break;
 
   case 20:
-#line 250 "WebCore/xml/XPathGrammar.y"
+#line 249 "XPathGrammar.y"
     {
-        (yyval.nodeTest) = new Step::NodeTest(Step::NodeTest::TextNodeTest);
+        (yyval.nodeTest) = new WebCore::XPath::Step::NodeTest(WebCore::XPath::Step::NodeTest::TextNodeTest);
     ;}
     break;
 
   case 21:
-#line 255 "WebCore/xml/XPathGrammar.y"
+#line 254 "XPathGrammar.y"
     {
-        (yyval.nodeTest) = new Step::NodeTest(Step::NodeTest::CommentNodeTest);
+        (yyval.nodeTest) = new WebCore::XPath::Step::NodeTest(WebCore::XPath::Step::NodeTest::CommentNodeTest);
     ;}
     break;
 
   case 22:
-#line 260 "WebCore/xml/XPathGrammar.y"
+#line 259 "XPathGrammar.y"
     {
-        (yyval.nodeTest) = new Step::NodeTest(Step::NodeTest::ProcessingInstructionNodeTest);
+        (yyval.nodeTest) = new WebCore::XPath::Step::NodeTest(WebCore::XPath::Step::NodeTest::ProcessingInstructionNodeTest);
     ;}
     break;
 
   case 23:
-#line 265 "WebCore/xml/XPathGrammar.y"
+#line 264 "XPathGrammar.y"
     {
-        String literal = adoptRef((yyvsp[(3) - (4)].string));
-        (yyval.nodeTest) = new Step::NodeTest(Step::NodeTest::ProcessingInstructionNodeTest, literal.stripWhiteSpace());
+        auto stringImpl = adoptRef((yyvsp[(3) - (4)].string));
+        if (stringImpl)
+            stringImpl = stringImpl->trim(deprecatedIsSpaceOrNewline);
+        (yyval.nodeTest) = new WebCore::XPath::Step::NodeTest(WebCore::XPath::Step::NodeTest::ProcessingInstructionNodeTest, stringImpl.get());
     ;}
     break;
 
   case 24:
-#line 273 "WebCore/xml/XPathGrammar.y"
+#line 274 "XPathGrammar.y"
     {
         (yyval.expressionVector) = nullptr;
     ;}
     break;
 
   case 26:
-#line 282 "WebCore/xml/XPathGrammar.y"
+#line 283 "XPathGrammar.y"
     {
-        (yyval.expressionVector) = new Vector<std::unique_ptr<Expression>>;
-        (yyval.expressionVector)->append(std::unique_ptr<Expression>((yyvsp[(1) - (1)].expression)));
+        (yyval.expressionVector) = new Vector<std::unique_ptr<WebCore::XPath::Expression>>;
+        (yyval.expressionVector)->append(std::unique_ptr<WebCore::XPath::Expression>((yyvsp[(1) - (1)].expression)));
     ;}
     break;
 
   case 27:
-#line 288 "WebCore/xml/XPathGrammar.y"
+#line 289 "XPathGrammar.y"
     {
         (yyval.expressionVector) = (yyvsp[(1) - (2)].expressionVector);
-        (yyval.expressionVector)->append(std::unique_ptr<Expression>((yyvsp[(2) - (2)].expression)));
+        (yyval.expressionVector)->append(std::unique_ptr<WebCore::XPath::Expression>((yyvsp[(2) - (2)].expression)));
     ;}
     break;
 
   case 28:
-#line 296 "WebCore/xml/XPathGrammar.y"
+#line 297 "XPathGrammar.y"
     {
         (yyval.expression) = (yyvsp[(2) - (3)].expression);
     ;}
     break;
 
   case 29:
-#line 303 "WebCore/xml/XPathGrammar.y"
+#line 304 "XPathGrammar.y"
     {
-        (yyval.step) = new Step(Step::DescendantOrSelfAxis, Step::NodeTest(Step::NodeTest::AnyNodeTest));
+        (yyval.step) = new WebCore::XPath::Step(WebCore::XPath::Step::DescendantOrSelfAxis, WebCore::XPath::Step::NodeTest(WebCore::XPath::Step::NodeTest::AnyNodeTest));
     ;}
     break;
 
   case 30:
-#line 310 "WebCore/xml/XPathGrammar.y"
+#line 311 "XPathGrammar.y"
     {
-        (yyval.step) = new Step(Step::SelfAxis, Step::NodeTest(Step::NodeTest::AnyNodeTest));
+        (yyval.step) = new WebCore::XPath::Step(WebCore::XPath::Step::SelfAxis, WebCore::XPath::Step::NodeTest(WebCore::XPath::Step::NodeTest::AnyNodeTest));
     ;}
     break;
 
   case 31:
-#line 315 "WebCore/xml/XPathGrammar.y"
+#line 316 "XPathGrammar.y"
     {
-        (yyval.step) = new Step(Step::ParentAxis, Step::NodeTest(Step::NodeTest::AnyNodeTest));
+        (yyval.step) = new WebCore::XPath::Step(WebCore::XPath::Step::ParentAxis, WebCore::XPath::Step::NodeTest(WebCore::XPath::Step::NodeTest::AnyNodeTest));
     ;}
     break;
 
   case 32:
-#line 322 "WebCore/xml/XPathGrammar.y"
+#line 323 "XPathGrammar.y"
     {
         String name = adoptRef((yyvsp[(1) - (1)].string));
-        (yyval.expression) = new VariableReference(name);
+        (yyval.expression) = new WebCore::XPath::VariableReference(name);
     ;}
     break;
 
   case 33:
-#line 328 "WebCore/xml/XPathGrammar.y"
+#line 329 "XPathGrammar.y"
     {
         (yyval.expression) = (yyvsp[(2) - (3)].expression);
     ;}
     break;
 
   case 34:
-#line 333 "WebCore/xml/XPathGrammar.y"
+#line 334 "XPathGrammar.y"
     {
         String literal = adoptRef((yyvsp[(1) - (1)].string));
-        (yyval.expression) = new StringExpression(WTFMove(literal));
+        (yyval.expression) = new WebCore::XPath::StringExpression(WTFMove(literal));
     ;}
     break;
 
   case 35:
-#line 339 "WebCore/xml/XPathGrammar.y"
+#line 340 "XPathGrammar.y"
     {
         String numeral = adoptRef((yyvsp[(1) - (1)].string));
-        (yyval.expression) = new Number(numeral.toDouble());
+        (yyval.expression) = new WebCore::XPath::Number(numeral.toDouble());
     ;}
     break;
 
   case 37:
-#line 349 "WebCore/xml/XPathGrammar.y"
+#line 350 "XPathGrammar.y"
     {
         String name = adoptRef((yyvsp[(1) - (3)].string));
-        (yyval.expression) = XPath::Function::create(name).release();
+        (yyval.expression) = WebCore::XPath::Function::create(name).release();
         if (!(yyval.expression))
             YYABORT;
     ;}
     break;
 
   case 38:
-#line 357 "WebCore/xml/XPathGrammar.y"
+#line 358 "XPathGrammar.y"
     {
         String name = adoptRef((yyvsp[(1) - (4)].string));
-        std::unique_ptr<Vector<std::unique_ptr<Expression>>> argumentList((yyvsp[(3) - (4)].expressionVector));
-        (yyval.expression) = XPath::Function::create(name, WTFMove(*argumentList)).release();
+        std::unique_ptr<Vector<std::unique_ptr<WebCore::XPath::Expression>>> argumentList((yyvsp[(3) - (4)].expressionVector));
+        (yyval.expression) = WebCore::XPath::Function::create(name, WTFMove(*argumentList)).release();
         if (!(yyval.expression))
             YYABORT;
     ;}
     break;
 
   case 39:
-#line 368 "WebCore/xml/XPathGrammar.y"
+#line 369 "XPathGrammar.y"
     {
-        (yyval.expressionVector) = new Vector<std::unique_ptr<Expression>>;
-        (yyval.expressionVector)->append(std::unique_ptr<Expression>((yyvsp[(1) - (1)].expression)));
+        (yyval.expressionVector) = new Vector<std::unique_ptr<WebCore::XPath::Expression>>;
+        (yyval.expressionVector)->append(std::unique_ptr<WebCore::XPath::Expression>((yyvsp[(1) - (1)].expression)));
     ;}
     break;
 
   case 40:
-#line 374 "WebCore/xml/XPathGrammar.y"
+#line 375 "XPathGrammar.y"
     {
         (yyval.expressionVector) = (yyvsp[(1) - (3)].expressionVector);
-        (yyval.expressionVector)->append(std::unique_ptr<Expression>((yyvsp[(3) - (3)].expression)));
+        (yyval.expressionVector)->append(std::unique_ptr<WebCore::XPath::Expression>((yyvsp[(3) - (3)].expression)));
     ;}
     break;
 
   case 43:
-#line 388 "WebCore/xml/XPathGrammar.y"
+#line 389 "XPathGrammar.y"
     {
-        (yyval.expression) = new Union(std::unique_ptr<Expression>((yyvsp[(1) - (3)].expression)), std::unique_ptr<Expression>((yyvsp[(3) - (3)].expression)));
+        (yyval.expression) = new WebCore::XPath::Union(std::unique_ptr<WebCore::XPath::Expression>((yyvsp[(1) - (3)].expression)), std::unique_ptr<WebCore::XPath::Expression>((yyvsp[(3) - (3)].expression)));
     ;}
     break;
 
   case 44:
-#line 395 "WebCore/xml/XPathGrammar.y"
+#line 396 "XPathGrammar.y"
     {
         (yyval.expression) = (yyvsp[(1) - (1)].locationPath);
     ;}
     break;
 
   case 46:
-#line 402 "WebCore/xml/XPathGrammar.y"
+#line 403 "XPathGrammar.y"
     {
         (yyvsp[(3) - (3)].locationPath)->setAbsolute();
-        (yyval.expression) = new XPath::Path(std::unique_ptr<Expression>((yyvsp[(1) - (3)].expression)), std::unique_ptr<LocationPath>((yyvsp[(3) - (3)].locationPath)));
+        (yyval.expression) = new WebCore::XPath::Path(std::unique_ptr<WebCore::XPath::Expression>((yyvsp[(1) - (3)].expression)), std::unique_ptr<WebCore::XPath::LocationPath>((yyvsp[(3) - (3)].locationPath)));
     ;}
     break;
 
   case 47:
-#line 408 "WebCore/xml/XPathGrammar.y"
+#line 409 "XPathGrammar.y"
     {
-        (yyvsp[(3) - (3)].locationPath)->prependStep(std::unique_ptr<Step>((yyvsp[(2) - (3)].step)));
+        (yyvsp[(3) - (3)].locationPath)->prependStep(std::unique_ptr<WebCore::XPath::Step>((yyvsp[(2) - (3)].step)));
         (yyvsp[(3) - (3)].locationPath)->setAbsolute();
-        (yyval.expression) = new XPath::Path(std::unique_ptr<Expression>((yyvsp[(1) - (3)].expression)), std::unique_ptr<LocationPath>((yyvsp[(3) - (3)].locationPath)));
+        (yyval.expression) = new WebCore::XPath::Path(std::unique_ptr<WebCore::XPath::Expression>((yyvsp[(1) - (3)].expression)), std::unique_ptr<WebCore::XPath::LocationPath>((yyvsp[(3) - (3)].locationPath)));
     ;}
     break;
 
   case 49:
-#line 419 "WebCore/xml/XPathGrammar.y"
+#line 420 "XPathGrammar.y"
     {
-        std::unique_ptr<Vector<std::unique_ptr<Expression>>> predicateList((yyvsp[(2) - (2)].expressionVector));
-        (yyval.expression) = new Filter(std::unique_ptr<Expression>((yyvsp[(1) - (2)].expression)), WTFMove(*predicateList));
+        std::unique_ptr<Vector<std::unique_ptr<WebCore::XPath::Expression>>> predicateList((yyvsp[(2) - (2)].expressionVector));
+        (yyval.expression) = new WebCore::XPath::Filter(std::unique_ptr<WebCore::XPath::Expression>((yyvsp[(1) - (2)].expression)), WTFMove(*predicateList));
     ;}
     break;
 
   case 51:
-#line 429 "WebCore/xml/XPathGrammar.y"
+#line 430 "XPathGrammar.y"
     {
-        (yyval.expression) = new LogicalOp(LogicalOp::OP_Or, std::unique_ptr<Expression>((yyvsp[(1) - (3)].expression)), std::unique_ptr<Expression>((yyvsp[(3) - (3)].expression)));
+        (yyval.expression) = new WebCore::XPath::LogicalOp(WebCore::XPath::LogicalOp::Opcode::Or, std::unique_ptr<WebCore::XPath::Expression>((yyvsp[(1) - (3)].expression)), std::unique_ptr<WebCore::XPath::Expression>((yyvsp[(3) - (3)].expression)));
     ;}
     break;
 
   case 53:
-#line 438 "WebCore/xml/XPathGrammar.y"
+#line 439 "XPathGrammar.y"
     {
-        (yyval.expression) = new LogicalOp(LogicalOp::OP_And, std::unique_ptr<Expression>((yyvsp[(1) - (3)].expression)), std::unique_ptr<Expression>((yyvsp[(3) - (3)].expression)));
+        (yyval.expression) = new WebCore::XPath::LogicalOp(WebCore::XPath::LogicalOp::Opcode::And, std::unique_ptr<WebCore::XPath::Expression>((yyvsp[(1) - (3)].expression)), std::unique_ptr<WebCore::XPath::Expression>((yyvsp[(3) - (3)].expression)));
     ;}
     break;
 
   case 55:
-#line 447 "WebCore/xml/XPathGrammar.y"
+#line 448 "XPathGrammar.y"
     {
-        (yyval.expression) = new EqTestOp((yyvsp[(2) - (3)].equalityTestOpcode), std::unique_ptr<Expression>((yyvsp[(1) - (3)].expression)), std::unique_ptr<Expression>((yyvsp[(3) - (3)].expression)));
+        (yyval.expression) = new WebCore::XPath::EqTestOp((yyvsp[(2) - (3)].equalityTestOpcode), std::unique_ptr<WebCore::XPath::Expression>((yyvsp[(1) - (3)].expression)), std::unique_ptr<WebCore::XPath::Expression>((yyvsp[(3) - (3)].expression)));
     ;}
     break;
 
   case 57:
-#line 456 "WebCore/xml/XPathGrammar.y"
+#line 457 "XPathGrammar.y"
     {
-        (yyval.expression) = new EqTestOp((yyvsp[(2) - (3)].equalityTestOpcode), std::unique_ptr<Expression>((yyvsp[(1) - (3)].expression)), std::unique_ptr<Expression>((yyvsp[(3) - (3)].expression)));
+        (yyval.expression) = new WebCore::XPath::EqTestOp((yyvsp[(2) - (3)].equalityTestOpcode), std::unique_ptr<WebCore::XPath::Expression>((yyvsp[(1) - (3)].expression)), std::unique_ptr<WebCore::XPath::Expression>((yyvsp[(3) - (3)].expression)));
     ;}
     break;
 
   case 59:
-#line 465 "WebCore/xml/XPathGrammar.y"
+#line 466 "XPathGrammar.y"
     {
-        (yyval.expression) = new NumericOp(NumericOp::OP_Add, std::unique_ptr<Expression>((yyvsp[(1) - (3)].expression)), std::unique_ptr<Expression>((yyvsp[(3) - (3)].expression)));
+        (yyval.expression) = new WebCore::XPath::NumericOp(WebCore::XPath::NumericOp::Opcode::Add, std::unique_ptr<WebCore::XPath::Expression>((yyvsp[(1) - (3)].expression)), std::unique_ptr<WebCore::XPath::Expression>((yyvsp[(3) - (3)].expression)));
     ;}
     break;
 
   case 60:
-#line 470 "WebCore/xml/XPathGrammar.y"
+#line 471 "XPathGrammar.y"
     {
-        (yyval.expression) = new NumericOp(NumericOp::OP_Sub, std::unique_ptr<Expression>((yyvsp[(1) - (3)].expression)), std::unique_ptr<Expression>((yyvsp[(3) - (3)].expression)));
+        (yyval.expression) = new WebCore::XPath::NumericOp(WebCore::XPath::NumericOp::Opcode::Sub, std::unique_ptr<WebCore::XPath::Expression>((yyvsp[(1) - (3)].expression)), std::unique_ptr<WebCore::XPath::Expression>((yyvsp[(3) - (3)].expression)));
     ;}
     break;
 
   case 62:
-#line 479 "WebCore/xml/XPathGrammar.y"
+#line 480 "XPathGrammar.y"
     {
-        (yyval.expression) = new NumericOp((yyvsp[(2) - (3)].numericOpcode), std::unique_ptr<Expression>((yyvsp[(1) - (3)].expression)), std::unique_ptr<Expression>((yyvsp[(3) - (3)].expression)));
+        (yyval.expression) = new WebCore::XPath::NumericOp((yyvsp[(2) - (3)].numericOpcode), std::unique_ptr<WebCore::XPath::Expression>((yyvsp[(1) - (3)].expression)), std::unique_ptr<WebCore::XPath::Expression>((yyvsp[(3) - (3)].expression)));
     ;}
     break;
 
   case 64:
-#line 488 "WebCore/xml/XPathGrammar.y"
+#line 489 "XPathGrammar.y"
     {
-        (yyval.expression) = new Negative(std::unique_ptr<Expression>((yyvsp[(2) - (2)].expression)));
+        (yyval.expression) = new WebCore::XPath::Negative(std::unique_ptr<WebCore::XPath::Expression>((yyvsp[(2) - (2)].expression)));
     ;}
     break;
 
 
 /* Line 1267 of yacc.c.  */
-#line 2049 "./XPathGrammar.cpp"
+#line 2050 "XPathGrammar.cpp"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -2082,7 +2076,6 @@ yyerrlab:
   /* If not already recovering from an error, report this error.  */
   if (!yyerrstatus)
     {
-      ++yynerrs;
 #if ! YYERROR_VERBOSE
       yyerror (parser, YY_("syntax error"));
 #else
@@ -2154,10 +2147,8 @@ yyerrorlab:
   /* Pacify compilers like GCC when the user code never invokes
      YYERROR and the label yyerrorlab therefore never appears in user
      code.  */
-  IGNORE_CLANG_WARNINGS_BEGIN("unreachable-code")
   if (/*CONSTCOND*/ 0)
      goto yyerrorlab;
-  IGNORE_CLANG_WARNINGS_END
 
   /* Do not reclaim the symbols of the rule which action triggered
      this YYERROR.  */
@@ -2264,6 +2255,8 @@ yyreturn:
 }
 
 
-#line 493 "WebCore/xml/XPathGrammar.y"
+#line 494 "XPathGrammar.y"
 
+
+WTF_ALLOW_UNSAFE_BUFFER_USAGE_END
 

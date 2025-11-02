@@ -18,7 +18,7 @@ DIRLIST = gstreamer/gst \
           gst-plugins-base/gst-libs/gst/tag \
           gst-plugins-base/gst-libs/gst/riff \
           gst-plugins-base/gst-libs/gst/app \
-	  projects/plugins \
+          projects/plugins \
           gstreamer/plugins/elements \
           gst-plugins-base/gst-libs/gst/fft \
           gst-plugins-base/gst-libs/gst/pbutils \
@@ -44,6 +44,7 @@ CFLAGS =-fPIC                   \
         -fstack-protector       \
         -Werror=implicit-function-declaration \
         -Werror=trampolines     \
+        -Werror=deprecated-declarations \
         -D_GNU_SOURCE           \
         -DGST_REMOVE_DEPRECATED \
         -DGSTREAMER_LITE        \
@@ -52,6 +53,8 @@ CFLAGS =-fPIC                   \
         -DLINUX                 \
         -DGST_DISABLE_GST_DEBUG \
         -DGST_DISABLE_LOADSAVE  \
+        -DGLIB_VERSION_MIN_REQUIRED=GLIB_VERSION_2_48 \
+        -DGLIB_VERSION_MAX_ALLOWED=GLIB_VERSION_2_48 \
         -ffunction-sections -fdata-sections
 
 ifeq ($(BUILD_TYPE), Release)
@@ -61,7 +64,7 @@ else
 endif
 
 INCLUDES = -I$(BASE_DIR)/plugins                          \
-	   -I$(SRCBASE_DIR)/projects/build/linux/common   \
+           -I$(SRCBASE_DIR)/projects/build/linux/common   \
            -I$(SRCBASE_DIR)/gstreamer                     \
            -I$(SRCBASE_DIR)/gstreamer/libs                \
            -I$(SRCBASE_DIR)/gstreamer/gst/parse           \
@@ -124,7 +127,6 @@ SOURCES = gstreamer/gst/gst.c \
           gstreamer/gst/gstpipeline.c \
           gstreamer/gst/gstplugin.c \
           gstreamer/gst/gstpluginfeature.c \
-          gstreamer/gst/gstpluginloader.c \
           gstreamer/gst/gstpoll.c \
           gstreamer/gst/gstprotection.c \
           gstreamer/gst/gstquark.c \
@@ -169,6 +171,7 @@ SOURCES = gstreamer/gst/gst.c \
           gstreamer/libs/gst/base/gsttypefindhelper.c \
           gst-plugins-base/gst-libs/gst/app/gstapp-marshal.c \
           gst-plugins-base/gst-libs/gst/app/gstappsink.c \
+          gst-plugins-base/gst-libs/gst/app/gstapputils.c \
           gst-plugins-base/gst-libs/gst/audio/audio.c \
           gst-plugins-base/gst-libs/gst/audio/audio-channels.c \
           gst-plugins-base/gst-libs/gst/audio/audio-channel-mixer.c \
@@ -199,8 +202,6 @@ SOURCES = gstreamer/gst/gst.c \
           gst-plugins-base/gst-libs/gst/fft/kiss_fftr_f32.c \
           gst-plugins-base/gst-libs/gst/pbutils/codec-utils.c \
           gst-plugins-base/gst-libs/gst/pbutils/descriptions.c \
-          gst-plugins-base/gst-libs/gst/pbutils/gstdiscoverer.c \
-          gst-plugins-base/gst-libs/gst/pbutils/gstdiscoverer-types.c \
           gst-plugins-base/gst-libs/gst/pbutils/gstpluginsbaseversion.c \
           gst-plugins-base/gst-libs/gst/pbutils/missing-plugins.c \
           gst-plugins-base/gst-libs/gst/pbutils/pbutils.c \
@@ -232,13 +233,19 @@ SOURCES = gstreamer/gst/gst.c \
           gst-plugins-base/gst/audioconvert/gstaudioconvert.c \
           gst-plugins-bad/gst/aiff/aiff.c \
           gst-plugins-bad/gst/aiff/aiffparse.c \
+          gst-plugins-bad/gst/aiff/gstaiffelement.c \
           gst-plugins-base/gst/app/gstapp.c \
+          gst-plugins-base/gst/app/gstappsink.c \
           gst-plugins-base/gst/typefind/gsttypefindfunctions.c \
+          gst-plugins-base/gst/typefind/gsttypefindfunctionsplugin.c \
           gst-plugins-good/gst/audioparsers/gstmpegaudioparse.c \
           gst-plugins-good/gst/audioparsers/parsersplugin.c \
           gst-plugins-good/gst/equalizer/gstiirequalizer.c \
           gst-plugins-good/gst/equalizer/gstiirequalizernbands.c \
+          gst-plugins-good/gst/equalizer/gstiirequalizerplugin.c \
           gst-plugins-good/gst/isomp4/isomp4-plugin.c \
+          gst-plugins-good/gst/isomp4/gstisomp4element.c \
+          gst-plugins-good/gst/isomp4/qtdemux-webvtt.c \
           gst-plugins-good/gst/isomp4/qtdemux.c \
           gst-plugins-good/gst/isomp4/gstisoff.c \
           gst-plugins-good/gst/isomp4/qtdemux_dump.c \
@@ -248,7 +255,7 @@ SOURCES = gstreamer/gst/gst.c \
           gst-plugins-good/gst/isomp4/qtdemux_types.c \
           gst-plugins-good/gst/spectrum/gstspectrum.c \
           gst-plugins-good/gst/wavparse/gstwavparse.c \
-          gstreamer/plugins/elements/gstelements.c \
+          gstreamer/plugins/elements/gstcoreelementsplugin.c \
           gstreamer/plugins/elements/gstqueue.c \
           gstreamer/plugins/elements/gsttypefindelement.c \
           gst-plugins-base/gst/volume/gstvolume.c \
@@ -257,6 +264,7 @@ SOURCES = gstreamer/gst/gst.c \
           gst-plugins-base/ext/alsa/gstalsa.c \
           gst-plugins-base/ext/alsa/gstalsadeviceprobe.c \
           gst-plugins-base/ext/alsa/gstalsasink.c \
+          gst-plugins-base/ext/alsa/gstalsaelement.c \
           projects/plugins/gstplugins-lite.c
 
 OBJ_DIRS = $(addprefix $(OBJBASE_DIR)/,$(DIRLIST))

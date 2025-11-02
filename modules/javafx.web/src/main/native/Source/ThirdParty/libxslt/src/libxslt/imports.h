@@ -24,9 +24,9 @@ extern "C" {
  *
  * A macro to import pointers from the stylesheet cascading order.
  */
-#define XSLT_GET_IMPORT_PTR(res, style, name) {         \
-    xsltStylesheetPtr st = style;               \
-    res = NULL;                         \
+#define XSLT_GET_IMPORT_PTR(res, style, name) {            \
+    xsltStylesheetPtr st = style;                \
+    res = NULL;                            \
     while (st != NULL) {                    \
     if (st->name != NULL) { res = st->name; break; }    \
     st = xsltNextImport(st);                \
@@ -37,11 +37,11 @@ extern "C" {
  *
  * A macro to import intergers from the stylesheet cascading order.
  */
-#define XSLT_GET_IMPORT_INT(res, style, name) {         \
-    xsltStylesheetPtr st = style;               \
-    res = -1;                           \
+#define XSLT_GET_IMPORT_INT(res, style, name) {            \
+    xsltStylesheetPtr st = style;                \
+    res = -1;                            \
     while (st != NULL) {                    \
-    if (st->name != -1) { res = st->name; break; }  \
+    if (st->name != -1) { res = st->name; break; }    \
     st = xsltNextImport(st);                \
     }}
 
@@ -56,7 +56,7 @@ XSLTPUBFUN int XSLTCALL
                          (xsltStylesheetPtr style,
                           xmlNodePtr cur);
 XSLTPUBFUN xsltStylesheetPtr XSLTCALL
-            xsltNextImport       (xsltStylesheetPtr style);
+            xsltNextImport         (xsltStylesheetPtr style);
 XSLTPUBFUN int XSLTCALL
             xsltNeedElemSpaceHandling(xsltTransformContextPtr ctxt);
 XSLTPUBFUN int XSLTCALL

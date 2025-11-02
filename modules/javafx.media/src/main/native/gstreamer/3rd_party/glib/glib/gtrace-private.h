@@ -1,6 +1,8 @@
 /*
  * Copyright © 2020 Endless Mobile, Inc.
  *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
@@ -23,8 +25,7 @@
 #include <sysprof-capture.h>
 #endif
 
-#include "gmem.h"
-#include "gmacros.h"
+#include "glib.h"
 
 G_BEGIN_DECLS
 
@@ -65,6 +66,17 @@ void (g_trace_mark) (gint64       begin_time_nsec,
 #else
 /* no varargs macro support; the call will have to be optimised out by the compiler */
 #endif
+#endif
+
+guint   (g_trace_define_int64_counter) (const char *group,
+                                        const char *name,
+                                        const char *description);
+void    (g_trace_set_int64_counter)    (guint       id,
+                                        gint64      value);
+
+#ifndef HAVE_SYSPROF
+#define g_trace_define_int64_counter(g, n, d) ((guint) -1)
+#define g_trace_set_int64_counter(i,v)
 #endif
 
 G_END_DECLS

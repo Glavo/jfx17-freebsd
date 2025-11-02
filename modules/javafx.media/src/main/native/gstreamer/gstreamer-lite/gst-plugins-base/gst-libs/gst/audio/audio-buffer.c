@@ -37,9 +37,9 @@ gst_audio_buffer_unmap_internal (GstAudioBuffer * buffer, guint n_unmap)
     gst_buffer_unmap (buffer->buffer, &buffer->map_infos[i]);
   }
   if (buffer->planes != buffer->priv_planes_arr)
-    g_slice_free1 (buffer->n_planes * sizeof (gpointer), buffer->planes);
+    g_free (buffer->planes);
   if (buffer->map_infos != buffer->priv_map_infos_arr)
-    g_slice_free1 (buffer->n_planes * sizeof (GstMapInfo), buffer->map_infos);
+    g_free (buffer->map_infos);
 }
 
 /**
@@ -59,7 +59,7 @@ gst_audio_buffer_unmap (GstAudioBuffer * buffer)
 
 /**
  * gst_audio_buffer_map:
- * @buffer: pointer to a #GstAudioBuffer
+ * @buffer: (out caller-allocates): pointer to a #GstAudioBuffer
  * @info: the audio properties of the buffer
  * @gstbuffer: (transfer none): the #GstBuffer to be mapped
  * @flags: the access mode for the memory
@@ -150,9 +150,8 @@ gst_audio_buffer_map (GstAudioBuffer * buffer, const GstAudioInfo * info,
     buffer->n_planes = GST_AUDIO_BUFFER_CHANNELS (buffer);
 
     if (G_UNLIKELY (buffer->n_planes > 8)) {
-      buffer->planes = g_slice_alloc (buffer->n_planes * sizeof (gpointer));
-      buffer->map_infos =
-          g_slice_alloc (buffer->n_planes * sizeof (GstMapInfo));
+      buffer->planes = g_new (gpointer, buffer->n_planes);
+      buffer->map_infos = g_new (GstMapInfo, buffer->n_planes);
     } else {
       buffer->planes = buffer->priv_planes_arr;
       buffer->map_infos = buffer->priv_map_infos_arr;

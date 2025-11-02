@@ -40,10 +40,10 @@ public:
     Ref<StyleTransformData> copy() const;
 
     bool operator==(const StyleTransformData&) const;
-    bool operator!=(const StyleTransformData& other) const
-    {
-        return !(*this == other);
-    }
+
+#if !LOG_DISABLED
+    void dumpDifferences(TextStream&, const StyleTransformData&) const;
+#endif
 
     bool hasTransform() const { return operations.size(); }
 

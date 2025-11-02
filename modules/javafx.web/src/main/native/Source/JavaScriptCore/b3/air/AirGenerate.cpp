@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015-2020 Apple Inc. All rights reserved.
+ * Copyright (C) 2015-2021 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,6 +31,7 @@
 #include "AirAllocateRegistersAndStackAndGenerateCode.h"
 #include "AirAllocateRegistersAndStackByLinearScan.h"
 #include "AirAllocateRegistersByGraphColoring.h"
+#include "AirAllocateRegistersByGreedy.h"
 #include "AirAllocateStackByGraphColoring.h"
 #include "AirCode.h"
 #include "AirEliminateDeadCode.h"
@@ -44,13 +45,14 @@
 #include "AirLowerStackArgs.h"
 #include "AirOpcodeUtils.h"
 #include "AirOptimizeBlockOrder.h"
+#include "AirOptimizePairedLoadStore.h"
 #include "AirReportUsedRegisters.h"
 #include "AirSimplifyCFG.h"
 #include "AirValidate.h"
 #include "B3Common.h"
 #include "B3Procedure.h"
-#include "B3TimingScope.h"
 #include "CCallHelpers.h"
+#include "CompilerTimingScope.h"
 #include "DisallowMacroScratchRegisterUsage.h"
 #include <wtf/IndexMap.h>
 
@@ -58,10 +60,10 @@ namespace JSC { namespace B3 { namespace Air {
 
 void prepareForGeneration(Code& code)
 {
-    TimingScope timingScope("Air::prepareForGeneration");
+    CompilerTimingScope timingScope("Total Air"_s, "prepareForGeneration"_s);
 
     // If we're doing super verbose dumping, the phase scope of any phase will already do a dump.
-    if (shouldDumpIR(AirMode) && !shouldDumpIRAtEachPhase(AirMode)) {
+    if (shouldDumpIR(code.proc(), AirMode) && !shouldDumpIRAtEachPhase(AirMode)) {
         dataLog(tierName, "Initial air:\n");
         dataLog(code);
     }
@@ -89,7 +91,7 @@ void prepareForGeneration(Code& code)
         if (shouldValidateIR())
             validate(code);
 
-        if (shouldDumpIR(AirMode)) {
+        if (shouldDumpIR(code.proc(), AirMode)) {
             dataLog("Air after ", code.lastPhaseName(), ", before generation:\n");
             dataLog(code);
         }
@@ -110,7 +112,16 @@ void prepareForGeneration(Code& code)
 
     eliminateDeadCode(code);
 
-    if (code.optLevel() == 1) {
+    auto useLinearScan = [](Code& code) -> bool {
+        if (code.usesSIMD())
+            return false;
+        if (Options::airUseGreedyRegAlloc())
+            return false;
+        unsigned numTmps = code.numTmps(Bank::GP) + code.numTmps(Bank::FP);
+        return code.optLevel() == 1 || numTmps > Options::maximumTmpsForGraphColoring();
+    };
+
+    if (useLinearScan(code)) {
         // When we're compiling quickly, we do register and stack allocation in one linear scan
         // phase. It's fast because it computes liveness only once.
         allocateRegistersAndStackByLinearScan(code);
@@ -130,6 +141,9 @@ void prepareForGeneration(Code& code)
 
         // Register allocation for all the Tmps that do not have a corresponding machine
         // register. After this phase, every Tmp has a reg.
+        if (Options::airUseGreedyRegAlloc() && !code.usesSIMD())
+            allocateRegistersByGreedy(code);
+        else
         allocateRegistersByGraphColoring(code);
 
         if (Options::logAirRegisterPressure()) {
@@ -173,6 +187,14 @@ void prepareForGeneration(Code& code)
     // The control flow graph can be simplified further after we have lowered EntrySwitch.
     simplifyCFG(code);
 
+    // We do this optimization at the very end of Air generation pipeline since it can be beneficial after
+    // spills are lowered to load/store with the frame pointer or the stack pointer. And this is block-local
+    // optimization, so this is more effective after simplifyCFG.
+#if CPU(ARM64)
+    if (Options::useAirOptimizePairedLoadStore())
+        optimizePairedLoadStore(code);
+#endif
+
     // This sorts the basic blocks in Code to achieve an ordering that maximizes the likelihood that a high
     // frequency successor is also the fall-through target.
     optimizeBlockOrder(code);
@@ -182,7 +204,7 @@ void prepareForGeneration(Code& code)
 
     // Do a final dump of Air. Note that we have to do this even if we are doing per-phase dumping,
     // since the final generation is not a phase.
-    if (shouldDumpIR(AirMode)) {
+    if (shouldDumpIR(code.proc(), AirMode)) {
         dataLog("Air after ", code.lastPhaseName(), ", before generation:\n");
         dataLog(code);
     }
@@ -190,9 +212,11 @@ void prepareForGeneration(Code& code)
 
 static void generateWithAlreadyAllocatedRegisters(Code& code, CCallHelpers& jit)
 {
-    TimingScope timingScope("Air::generate");
+    CompilerTimingScope timingScope("Air"_s, "generateWithAlreadyAllocatedRegisters"_s);
 
+#if !CPU(ARM)
     DisallowMacroScratchRegisterUsage disallowScratch(jit);
+#endif
 
     // And now, we generate code.
     GenerationContext context;
@@ -213,11 +237,12 @@ static void generateWithAlreadyAllocatedRegisters(Code& code, CCallHelpers& jit)
 
     PCToOriginMap& pcToOriginMap = code.proc().pcToOriginMap();
     auto addItem = [&] (Inst& inst) {
-        if (!inst.origin) {
-            pcToOriginMap.appendItem(jit.labelIgnoringWatchpoints(), Origin());
+        if (!code.shouldPreserveB3Origins())
             return;
-        }
-        pcToOriginMap.appendItem(jit.labelIgnoringWatchpoints(), inst.origin->origin());
+        if (inst.origin)
+            pcToOriginMap.appendItem(jit.labelIgnoringWatchpoints(), inst.origin->origin());
+        else
+            pcToOriginMap.appendItem(jit.labelIgnoringWatchpoints(), Origin());
     };
 
     Disassembler* disassembler = code.disassembler();
@@ -232,7 +257,7 @@ static void generateWithAlreadyAllocatedRegisters(Code& code, CCallHelpers& jit)
         if (disassembler)
             disassembler->startBlock(block, jit);
 
-        if (Optional<unsigned> entrypointIndex = code.entrypointIndex(block)) {
+        if (std::optional<unsigned> entrypointIndex = code.entrypointIndex(block)) {
             ASSERT(code.isEntrypoint(block));
 
             if (disassembler)

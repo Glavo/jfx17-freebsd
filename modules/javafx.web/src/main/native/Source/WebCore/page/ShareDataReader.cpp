@@ -50,27 +50,37 @@ void ShareDataReader::start(Document* document, ShareDataWithParsedURL&& shareDa
     int count = 0;
     m_pendingFileLoads.reserveInitialCapacity(m_shareData.shareData.files.size());
     for (auto& blob : m_shareData.shareData.files) {
-        m_pendingFileLoads.uncheckedAppend(makeUniqueRef<BlobLoader>(document, *blob, [this, count, fileName = blob->name()] {
+        m_pendingFileLoads.append(makeUniqueRef<BlobLoader>([this, count, fileName = blob->name()](BlobLoader&) {
             this->didFinishLoading(count, fileName);
         }));
-        count++;
+        m_pendingFileLoads.last()->start(blob, document, FileReaderLoader::ReadAsArrayBuffer);
+        if (m_pendingFileLoads.isEmpty()) {
+            // The previous load failed synchronously and cancel() was called. We should not attempt to do any further loads.
+            break;
+        }
+        ++count;
     }
 }
 
 void ShareDataReader::didFinishLoading(int loadIndex, const String& fileName)
 {
+    if (m_pendingFileLoads.isEmpty()) {
+        // cancel() was called.
+        return;
+    }
+
     if (m_pendingFileLoads[loadIndex]->errorCode()) {
         if (auto completionHandler = std::exchange(m_completionHandler, { }))
-            completionHandler(Exception { AbortError, "Abort due to error while reading files."_s });
+            completionHandler(Exception { ExceptionCode::AbortError, "Abort due to error while reading files."_s });
         cancel();
         return;
     }
 
-    auto arrayBuffer = m_pendingFileLoads[loadIndex]->result();
+    auto arrayBuffer = m_pendingFileLoads[loadIndex]->arrayBufferResult();
 
     RawFile file;
     file.fileName = fileName;
-    file.fileData = SharedBuffer::create(static_cast<const unsigned char*>(arrayBuffer->data()), arrayBuffer->byteLength());
+    file.fileData = SharedBuffer::create(arrayBuffer->span());
     m_shareData.files.append(WTFMove(file));
     m_filesReadSoFar++;
 
@@ -85,4 +95,5 @@ void ShareDataReader::cancel()
 {
     m_pendingFileLoads.clear();
 }
+
 }

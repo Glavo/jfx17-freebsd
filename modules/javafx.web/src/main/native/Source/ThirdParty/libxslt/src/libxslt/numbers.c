@@ -36,39 +36,68 @@
 
 #define SYMBOL_QUOTE        ((xmlChar)'\'')
 
-#define DEFAULT_TOKEN       '0'
-#define DEFAULT_SEPARATOR   "."
+#define DEFAULT_TOKEN        '0'
+#define DEFAULT_SEPARATOR    "."
 
-#define MAX_TOKENS      1024
+#define MAX_TOKENS        1024
 
 typedef struct _xsltFormatToken xsltFormatToken;
 typedef xsltFormatToken *xsltFormatTokenPtr;
 struct _xsltFormatToken {
-    xmlChar *separator;
-    int      token;
-    int      width;
+    xmlChar    *separator;
+    int         token;
+    int         width;
 };
 
 typedef struct _xsltFormat xsltFormat;
 typedef xsltFormat *xsltFormatPtr;
 struct _xsltFormat {
-    xmlChar     *start;
-    xsltFormatToken  tokens[MAX_TOKENS];
-    int          nTokens;
-    xmlChar     *end;
+    xmlChar        *start;
+    xsltFormatToken     tokens[MAX_TOKENS];
+    int             nTokens;
+    xmlChar        *end;
 };
 
-static char alpha_upper_list[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-static char alpha_lower_list[] = "abcdefghijklmnopqrstuvwxyz";
-static xsltFormatToken default_token;
+static const char alpha_upper_list[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+static const char alpha_lower_list[] = "abcdefghijklmnopqrstuvwxyz";
+static const xsltFormatToken default_token = {
+    BAD_CAST(DEFAULT_SEPARATOR),
+    DEFAULT_TOKEN,
+    1
+};
 
 /*
- * **** Start temp insert ****
- *
- * The following routine xsltUTF8Charcmp will be replaced with calls to
- * the corresponding libxml routine at a later date (when other
- * inter-library dependencies require it).
+ * Helper functions copied from libxml2
  */
+
+/**
+ * xsltCopyCharMultiByte:
+ * @out:  pointer to an array of xmlChar
+ * @val:  the char value
+ *
+ * append the char value in the array
+ *
+ * Returns the number of xmlChar written
+ */
+static int
+xsltCopyCharMultiByte(xmlChar *out, int val) {
+    if ((out == NULL) || (val < 0)) return(0);
+    if  (val >= 0x80) {
+    xmlChar *savedout = out;
+    int bits;
+    if (val <   0x800) { *out++= (val >>  6) | 0xC0;  bits=  0; }
+    else if (val < 0x10000) { *out++= (val >> 12) | 0xE0;  bits=  6;}
+    else if (val < 0x110000)  { *out++= (val >> 18) | 0xF0;  bits=  12; }
+    else {
+        return(0);
+    }
+    for ( ; bits >= 0; bits-= 6)
+        *out++= ((val >> bits) & 0x3F) | 0x80 ;
+    return (out - savedout);
+    }
+    *out = val;
+    return 1;
+}
 
 /**
  * xsltUTF8Charcmp
@@ -92,25 +121,30 @@ xsltUTF8Charcmp(xmlChar *utf1, xmlChar *utf2) {
     return xmlStrncmp(utf1, utf2, len);
 }
 
-/***** Stop temp insert *****/
+static int
+xsltIsLetterDigit(int val) {
+    return xmlIsBaseCharQ(val) || xmlIsIdeographicQ(val) ||
+           xmlIsDigitQ(val);
+}
+
 /************************************************************************
- *                                  *
- *          Utility functions               *
- *                                  *
+ *                                    *
+ *            Utility functions                *
+ *                                    *
  ************************************************************************/
 
-#define IS_SPECIAL(self,letter)         \
-    ((xsltUTF8Charcmp((letter), (self)->zeroDigit) == 0)        ||  \
-     (xsltUTF8Charcmp((letter), (self)->digit) == 0)        ||  \
-     (xsltUTF8Charcmp((letter), (self)->decimalPoint) == 0)  || \
-     (xsltUTF8Charcmp((letter), (self)->grouping) == 0)     ||  \
+#define IS_SPECIAL(self,letter)            \
+    ((xsltUTF8Charcmp((letter), (self)->zeroDigit) == 0)        ||    \
+     (xsltUTF8Charcmp((letter), (self)->digit) == 0)        ||    \
+     (xsltUTF8Charcmp((letter), (self)->decimalPoint) == 0)  ||    \
+     (xsltUTF8Charcmp((letter), (self)->grouping) == 0)        ||    \
      (xsltUTF8Charcmp((letter), (self)->patternSeparator) == 0))
 
 #define IS_DIGIT_ZERO(x) xsltIsDigitZero(x)
 #define IS_DIGIT_ONE(x) xsltIsDigitZero((x)-1)
 
 static int
-xsltIsDigitZero(unsigned int ch)
+xsltIsDigitZero(int ch)
 {
     /*
      * Reference: ftp://ftp.unicode.org/Public/UNIDATA/UnicodeData.txt
@@ -164,16 +198,16 @@ xsltNumberFormatDecimal(xmlBufferPtr buffer,
         (digitsPerGroup > 0) &&
         ((i % digitsPerGroup) == 0)) {
         if (pointer - groupingCharacterLen < temp_string) {
-            i = -1;     /* flag error */
+            i = -1;        /* flag error */
         break;
         }
         pointer -= groupingCharacterLen;
-        xmlCopyCharMultiByte(pointer, groupingCharacter);
+        xsltCopyCharMultiByte(pointer, groupingCharacter);
     }
 
     val = digit_zero + (int)fmod(number, 10.0);
-    if (val < 0x80) {           /* shortcut if ASCII */
-        if (pointer <= temp_string) {   /* Check enough room */
+    if (val < 0x80) {            /* shortcut if ASCII */
+        if (pointer <= temp_string) {    /* Check enough room */
             i = -1;
         break;
         }
@@ -186,7 +220,7 @@ xsltNumberFormatDecimal(xmlBufferPtr buffer,
      * it is.  So, we generate it into the buffer temp_char, then
      * copy from there into temp_string.
      */
-        len = xmlCopyCharMultiByte(temp_char, val);
+        len = xsltCopyCharMultiByte(temp_char, val);
         if ( (pointer - len) < temp_string ) {
             i = -1;
         break;
@@ -212,7 +246,7 @@ xsltNumberFormatAlpha(xsltNumberDataPtr data,
     char temp_string[sizeof(double) * CHAR_BIT * sizeof(xmlChar) + 1];
     char *pointer;
     int i;
-    char *alpha_list;
+    const char *alpha_list;
     double alpha_size = (double)(sizeof(alpha_upper_list) - 1);
 
     /*
@@ -334,11 +368,6 @@ xsltNumberFormatTokenize(const xmlChar *format,
     int val;
     int len;
 
-    default_token.token = DEFAULT_TOKEN;
-    default_token.width = 1;
-    default_token.separator = BAD_CAST(DEFAULT_SEPARATOR);
-
-
     tokens->start = NULL;
     tokens->tokens[0].separator = NULL;
     tokens->end = NULL;
@@ -347,8 +376,7 @@ xsltNumberFormatTokenize(const xmlChar *format,
      * Insert initial non-alphanumeric token.
      * There is always such a token in the list, even if NULL
      */
-    while (! (IS_LETTER(val=xmlStringCurrentChar(NULL, format+ix, &len)) ||
-          IS_DIGIT(val)) ) {
+    while (!xsltIsLetterDigit(val = xsltGetUTF8CharZ(format+ix, &len))) {
     if (format[ix] == 0)        /* if end of format string */
         break; /* while */
     ix += len;
@@ -371,19 +399,19 @@ xsltNumberFormatTokenize(const xmlChar *format,
         tokens->end = NULL;
     }
 
-    val = xmlStringCurrentChar(NULL, format+ix, &len);
+    val = xsltGetUTF8CharZ(format+ix, &len);
     if (IS_DIGIT_ONE(val) ||
          IS_DIGIT_ZERO(val)) {
         tokens->tokens[tokens->nTokens].width = 1;
         while (IS_DIGIT_ZERO(val)) {
         tokens->tokens[tokens->nTokens].width++;
         ix += len;
-        val = xmlStringCurrentChar(NULL, format+ix, &len);
+        val = xsltGetUTF8CharZ(format+ix, &len);
         }
         if (IS_DIGIT_ONE(val)) {
         tokens->tokens[tokens->nTokens].token = val - 1;
         ix += len;
-        val = xmlStringCurrentChar(NULL, format+ix, &len);
+        val = xsltGetUTF8CharZ(format+ix, &len);
         } else {
                 tokens->tokens[tokens->nTokens].token = '0';
                 tokens->tokens[tokens->nTokens].width = 1;
@@ -394,7 +422,7 @@ xsltNumberFormatTokenize(const xmlChar *format,
             (val == 'i') ) {
         tokens->tokens[tokens->nTokens].token = val;
         ix += len;
-        val = xmlStringCurrentChar(NULL, format+ix, &len);
+        val = xsltGetUTF8CharZ(format+ix, &len);
     } else {
         /* XSLT section 7.7
          * "Any other format token indicates a numbering sequence
@@ -414,20 +442,20 @@ xsltNumberFormatTokenize(const xmlChar *format,
      * to correspond to the Letter and Digit classes from XML (and
      * one wonders why XSLT doesn't refer to these instead).
      */
-    while (IS_LETTER(val) || IS_DIGIT(val)) {
+    while (xsltIsLetterDigit(val)) {
         ix += len;
-        val = xmlStringCurrentChar(NULL, format+ix, &len);
+        val = xsltGetUTF8CharZ(format+ix, &len);
     }
 
     /*
      * Insert temporary non-alphanumeric final tooken.
      */
     j = ix;
-    while (! (IS_LETTER(val) || IS_DIGIT(val))) {
+    while (!xsltIsLetterDigit(val)) {
         if (val == 0)
         break; /* while */
         ix += len;
-        val = xmlStringCurrentChar(NULL, format+ix, &len);
+        val = xsltGetUTF8CharZ(format+ix, &len);
     }
     if (ix > j)
         tokens->end = xmlStrndup(&format[j], ix - j);
@@ -443,7 +471,7 @@ xsltNumberFormatInsertNumbers(xsltNumberDataPtr data,
 {
     int i = 0;
     double number;
-    xsltFormatTokenPtr token;
+    const xsltFormatToken *token;
 
     /*
      * Handle initial non-alphanumeric token
@@ -651,51 +679,48 @@ xsltNumberFormatGetMultipleLevel(xsltTransformContextPtr context,
 {
     int amount = 0;
     int cnt;
-    xmlNodePtr oldCtxtNode;
     xmlNodePtr ancestor;
     xmlNodePtr preceding;
-    xmlXPathParserContextPtr parser;
 
-    oldCtxtNode = context->xpathCtxt->node;
-    parser = xmlXPathNewParserContext(NULL, context->xpathCtxt);
-    if (parser) {
     /* ancestor-or-self::*[count] */
     ancestor = node;
+
     while ((ancestor != NULL) && (ancestor->type != XML_DOCUMENT_NODE)) {
         if ((fromPat != NULL) &&
-        xsltTestCompMatchList(context, ancestor, fromPat))
-        break; /* for */
-
-            /*
-             * The xmlXPathNext* iterators require that the context node is
-             * set to the start node. Calls to xsltTestCompMatch* may also
-             * leave the context node in an undefined state, so make sure
-             * that the context node is reset before each iterator invocation.
-             */
+            xsltTestCompMatchList(context, ancestor, fromPat))
+            break;
 
         if (xsltTestCompMatchCount(context, ancestor, countPat, node)) {
-        /* count(preceding-sibling::*) */
-        cnt = 1;
-                context->xpathCtxt->node = ancestor;
-                preceding = xmlXPathNextPrecedingSibling(parser, ancestor);
-                while (preceding != NULL) {
+            /* count(preceding-sibling::*) */
+            cnt = 1;
+            if (ancestor->type != XML_NAMESPACE_DECL)
+                preceding = ancestor->prev;
+            else
+                preceding = NULL;
+            while (preceding != NULL) {
                 if (xsltTestCompMatchCount(context, preceding, countPat,
-                                               node))
-            cnt++;
-                    context->xpathCtxt->node = ancestor;
-                    preceding =
-                        xmlXPathNextPrecedingSibling(parser, preceding);
+                                           node))
+                    cnt++;
+                preceding = preceding->prev;
+            }
+            array[amount++] = (double)cnt;
+            if (amount >= max)
+                break;
         }
-        array[amount++] = (double)cnt;
-        if (amount >= max)
-            break; /* for */
+
+        if ((ancestor != NULL) && (ancestor->type == XML_NAMESPACE_DECL)) {
+            xmlNsPtr ns = (xmlNsPtr) ancestor;
+
+            if ((ns->next != NULL) &&
+                (ns->next->type != XML_NAMESPACE_DECL))
+                ancestor = (xmlNodePtr) ns->next;
+            else
+                ancestor = NULL;
+        } else {
+            ancestor = ancestor->parent;
         }
-            context->xpathCtxt->node = node;
-            ancestor = xmlXPathNextAncestor(parser, ancestor);
     }
-    xmlXPathFreeParserContext(parser);
-    }
-    context->xpathCtxt->node = oldCtxtNode;
+
     return amount;
 }
 
@@ -708,9 +733,12 @@ xsltNumberFormatGetValue(xmlXPathContextPtr context,
     int amount = 0;
     xmlBufferPtr pattern;
     xmlXPathObjectPtr obj;
+    xmlNodePtr oldNode;
 
     pattern = xmlBufferCreate();
     if (pattern != NULL) {
+        oldNode = context->node;
+
     xmlBufferCCat(pattern, "number(");
     xmlBufferCat(pattern, value);
     xmlBufferCCat(pattern, ")");
@@ -723,6 +751,8 @@ xsltNumberFormatGetValue(xmlXPathContextPtr context,
         xmlXPathFreeObject(obj);
     }
     xmlBufferFree(pattern);
+
+        context->node = oldNode;
     }
     return amount;
 }
@@ -860,7 +890,7 @@ static int
 xsltFormatNumberPreSuffix(xsltDecimalFormatPtr self, xmlChar **format, xsltFormatNumberInfoPtr info)
 {
     /* will hold total length of prefix/suffix without quote characters */
-    int count=0;
+    int    count=0;
     int len;
 
     while (1) {
@@ -958,16 +988,17 @@ xsltFormatNumberConversion(xsltDecimalFormatPtr self,
     xmlBufferPtr buffer;
     xmlChar *the_format, *prefix = NULL, *suffix = NULL;
     xmlChar *nprefix, *nsuffix = NULL;
-    int     prefix_length, suffix_length = 0, nprefix_length, nsuffix_length;
+    int        prefix_length, suffix_length = 0, nprefix_length, nsuffix_length;
+    int     exp10;
     double  scale;
-    int     j, len;
+    int        j, len = 0;
     int     self_grouping_len;
     xsltFormatNumberInfo format_info;
     /*
      * delayed_multiplier allows a 'trailing' percent or
      * permille to be treated as suffix
      */
-    int     delayed_multiplier = 0;
+    int        delayed_multiplier = 0;
     /* flag to show no -ve format present for -ve number */
     char    default_sign = 0;
     /* flag to show error found, should use default format */
@@ -979,32 +1010,12 @@ xsltFormatNumberConversion(xsltDecimalFormatPtr self,
         "Invalid format (0-length)\n");
     }
     *result = NULL;
-    switch (xmlXPathIsInf(number)) {
-    case -1:
-        if (self->minusSign == NULL)
-        *result = xmlStrdup(BAD_CAST "-");
-        else
-        *result = xmlStrdup(self->minusSign);
-        /* Intentional fall-through */
-    case 1:
-        if ((self == NULL) || (self->infinity == NULL))
-        *result = xmlStrcat(*result, BAD_CAST "Infinity");
-        else
-        *result = xmlStrcat(*result, self->infinity);
-        return(status);
-    default:
-        if (xmlXPathIsNaN(number)) {
+    if (xmlXPathIsNaN(number)) {
         if ((self == NULL) || (self->noNumber == NULL))
             *result = xmlStrdup(BAD_CAST "NaN");
         else
             *result = xmlStrdup(self->noNumber);
         return(status);
-        }
-    }
-
-    buffer = xmlBufferCreate();
-    if (buffer == NULL) {
-    return XPATH_MEMORY_ERROR;
     }
 
     format_info.integer_hash = 0;
@@ -1096,7 +1107,7 @@ xsltFormatNumberConversion(xsltDecimalFormatPtr self,
             found_error = 1;
             goto OUTPUT_NUMBER;
         }
-    the_format += len;  /* Skip over the decimal */
+    the_format += len;    /* Skip over the decimal */
     }
 
     while (*the_format != 0) {
@@ -1277,6 +1288,30 @@ OUTPUT_NUMBER:
     format_info.add_decimal = TRUE;
     }
 
+    /* Apply multiplier */
+    number *= (double)format_info.multiplier;
+    switch (xmlXPathIsInf(number)) {
+    case -1:
+        if (self->minusSign == NULL)
+        *result = xmlStrdup(BAD_CAST "-");
+        else
+        *result = xmlStrdup(self->minusSign);
+        /* Intentional fall-through */
+    case 1:
+        if ((self == NULL) || (self->infinity == NULL))
+        *result = xmlStrcat(*result, BAD_CAST "Infinity");
+        else
+        *result = xmlStrcat(*result, self->infinity);
+        return(status);
+    default:
+            break;
+    }
+
+    buffer = xmlBufferCreate();
+    if (buffer == NULL) {
+    return XPATH_MEMORY_ERROR;
+    }
+
     /* Ready to output our number.  First see if "default sign" is required */
     if (default_sign != 0)
     xmlBufferAdd(buffer, self->minusSign, xmlUTF8Strsize(self->minusSign, 1));
@@ -1291,10 +1326,24 @@ OUTPUT_NUMBER:
         j += len;
     }
 
+    /* Round to n digits */
+    number = fabs(number);
+    exp10 = format_info.frac_digits + format_info.frac_hash;
+    /* DBL_MAX_10_EXP should be 308 on IEEE platforms. */
+    if (exp10 > DBL_MAX_10_EXP) {
+        if (format_info.frac_digits > DBL_MAX_10_EXP) {
+            format_info.frac_digits = DBL_MAX_10_EXP;
+            format_info.frac_hash = 0;
+        } else {
+            format_info.frac_hash = DBL_MAX_10_EXP - format_info.frac_digits;
+        }
+        exp10 = DBL_MAX_10_EXP;
+    }
+    scale = pow(10.0, (double) exp10);
+    number += .5 / scale;
+    number -= fmod(number, 1 / scale);
+
     /* Next do the integer part of the number */
-    number = fabs(number) * (double)format_info.multiplier;
-    scale = pow(10.0, (double)(format_info.frac_digits + format_info.frac_hash));
-    number = floor((scale * number + 0.5)) / scale;
     if ((self->grouping != NULL) &&
         (self->grouping[0] != 0)) {
         int gchar;

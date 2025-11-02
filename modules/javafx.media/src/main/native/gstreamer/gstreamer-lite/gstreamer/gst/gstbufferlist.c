@@ -30,7 +30,7 @@
  * Buffer lists are an object containing a list of buffers.
  *
  * Buffer lists are created with gst_buffer_list_new() and filled with data
- * using a gst_buffer_list_insert().
+ * using gst_buffer_list_insert().
  *
  * Buffer lists can be pushed on a srcpad with gst_pad_push_list(). This is
  * interesting when multiple buffers need to be pushed in one go because it
@@ -60,8 +60,6 @@ struct _GstBufferList
   GstBuffer **buffers;
   guint n_buffers;
   guint n_allocated;
-
-  gsize slice_size;
 
   /* one-item array, in reality more items are pre-allocated
    * as part of the GstBufferList structure, and that
@@ -104,7 +102,6 @@ static void
 _gst_buffer_list_free (GstBufferList * list)
 {
   guint i, len;
-  gsize slice_size;
 
   GST_LOG ("free %p", list);
 
@@ -119,17 +116,15 @@ _gst_buffer_list_free (GstBufferList * list)
   if (GST_BUFFER_LIST_IS_USING_DYNAMIC_ARRAY (list))
     g_free (list->buffers);
 
-  slice_size = list->slice_size;
-
 #ifdef USE_POISONING
-  memset (list, 0xff, slice_size);
+  memset (list, 0xff, sizeof (GstBufferList));
 #endif
 
-  g_slice_free1 (slice_size, list);
+  g_free (list);
 }
 
 static void
-gst_buffer_list_init (GstBufferList * list, guint n_allocated, gsize slice_size)
+gst_buffer_list_init (GstBufferList * list, guint n_allocated)
 {
   gst_mini_object_init (GST_MINI_OBJECT_CAST (list), 0, _gst_buffer_list_type,
       (GstMiniObjectCopyFunction) _gst_buffer_list_copy, NULL,
@@ -138,7 +133,6 @@ gst_buffer_list_init (GstBufferList * list, guint n_allocated, gsize slice_size)
   list->buffers = &list->arr[0];
   list->n_buffers = 0;
   list->n_allocated = n_allocated;
-  list->slice_size = slice_size;
 
   GST_LOG ("init %p", list);
 }
@@ -147,14 +141,10 @@ gst_buffer_list_init (GstBufferList * list, guint n_allocated, gsize slice_size)
  * gst_buffer_list_new_sized:
  * @size: an initial reserved size
  *
- * Creates a new, empty #GstBufferList. The caller is responsible for unreffing
- * the returned #GstBufferList. The list will have @size space preallocated so
- * that memory reallocations can be avoided.
+ * Creates a new, empty #GstBufferList. The list will have @size space
+ * preallocated so that memory reallocations can be avoided.
  *
- * Free-function: gst_buffer_list_unref
- *
- * Returns: (transfer full): the new #GstBufferList. gst_buffer_list_unref()
- *     after usage.
+ * Returns: (transfer full): the new #GstBufferList.
  */
 GstBufferList *
 gst_buffer_list_new_sized (guint size)
@@ -170,11 +160,11 @@ gst_buffer_list_new_sized (guint size)
 
   slice_size = sizeof (GstBufferList) + (n_allocated - 1) * sizeof (gpointer);
 
-  list = g_slice_alloc0 (slice_size);
+  list = g_malloc0 (slice_size);
 
   GST_LOG ("new %p", list);
 
-  gst_buffer_list_init (list, n_allocated, slice_size);
+  gst_buffer_list_init (list, n_allocated);
 
   return list;
 }
@@ -182,13 +172,9 @@ gst_buffer_list_new_sized (guint size)
 /**
  * gst_buffer_list_new:
  *
- * Creates a new, empty #GstBufferList. The caller is responsible for unreffing
- * the returned #GstBufferList.
+ * Creates a new, empty #GstBufferList.
  *
- * Free-function: gst_buffer_list_unref
- *
- * Returns: (transfer full): the new #GstBufferList. gst_buffer_list_unref()
- *     after usage.
+ * Returns: (transfer full): the new #GstBufferList.
  */
 GstBufferList *
 gst_buffer_list_new (void)
@@ -240,10 +226,10 @@ gst_buffer_list_remove_range_internal (GstBufferList * list, guint idx,
  * @func: (scope call): a #GstBufferListFunc to call
  * @user_data: (closure): user data passed to @func
  *
- * Call @func with @data for each buffer in @list.
+ * Calls @func with @data for each buffer in @list.
  *
  * @func can modify the passed buffer pointer or its contents. The return value
- * of @func define if this function returns or if the remaining buffers in
+ * of @func defines if this function returns or if the remaining buffers in
  * the list should be skipped.
  *
  * Returns: %TRUE when @func returned %TRUE for each buffer in @list or when
@@ -341,7 +327,7 @@ gst_buffer_list_foreach (GstBufferList * list, GstBufferListFunc func,
  * @list: a #GstBufferList
  * @idx: the index
  *
- * Get the buffer at @idx.
+ * Gets the buffer at @idx.
  *
  * You must make sure that @idx does not exceed the number of
  * buffers available.
@@ -413,7 +399,7 @@ gst_buffer_list_get_writable (GstBufferList * list, guint idx)
  * @idx: the index
  * @buffer: (transfer full): a #GstBuffer
  *
- * Insert @buffer at @idx in @list. Other buffers are moved to make room for
+ * Inserts @buffer at @idx in @list. Other buffers are moved to make room for
  * this new buffer.
  *
  * A -1 value for @idx will append the buffer at the end.
@@ -473,7 +459,7 @@ gst_buffer_list_insert (GstBufferList * list, gint idx, GstBuffer * buffer)
  * @idx: the index
  * @length: the amount to remove
  *
- * Remove @length buffers starting from @idx in @list. The following buffers
+ * Removes @length buffers starting from @idx in @list. The following buffers
  * are moved to close the gap.
  */
 void
@@ -491,8 +477,8 @@ gst_buffer_list_remove (GstBufferList * list, guint idx, guint length)
  * gst_buffer_list_copy_deep:
  * @list: a #GstBufferList
  *
- * Create a copy of the given buffer list. This will make a newly allocated
- * copy of the buffer that the source buffer list contains.
+ * Creates a copy of the given buffer list. This will make a newly allocated
+ * copy of the buffers that the source buffer list contains.
  *
  * Returns: (transfer full): a new copy of @list.
  *
@@ -530,10 +516,10 @@ gst_buffer_list_copy_deep (const GstBufferList * list)
  * gst_buffer_list_calculate_size:
  * @list: a #GstBufferList
  *
- * Calculates the size of the data contained in buffer list by adding the
+ * Calculates the size of the data contained in @list by adding the
  * size of all buffers.
  *
- * Returns: the size of the data contained in buffer list in bytes.
+ * Returns: the size of the data contained in @list in bytes.
  *
  * Since: 1.14
  */
@@ -611,7 +597,7 @@ gst_clear_buffer_list (GstBufferList ** list_ptr)
  * gst_buffer_list_copy: (skip)
  * @list: a #GstBufferList
  *
- * Create a shallow copy of the given buffer list. This will make a newly
+ * Creates a shallow copy of the given buffer list. This will make a newly
  * allocated copy of the source list with copies of buffer pointers. The
  * refcount of buffers pointed to will be increased by one.
  *

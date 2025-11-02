@@ -28,6 +28,7 @@
 
 #include <WebCore/HTMLNames.h>
 #include <WebCore/HTMLParamElement.h>
+#include <WebCore/ElementInlines.h>
 #include <WebCore/JSExecState.h>
 
 #include <wtf/RefPtr.h>
@@ -53,7 +54,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLParamElementImpl_getNameIm
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLParamElementImpl_setNameImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::nameAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::nameAttr, AtomString{String(env, value)});
 }
 
 JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLParamElementImpl_getTypeImpl(JNIEnv* env, jclass, jlong peer)
@@ -65,7 +66,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLParamElementImpl_getTypeIm
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLParamElementImpl_setTypeImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::typeAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::typeAttr, AtomString{String(env, value)});
 }
 
 JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLParamElementImpl_getValueImpl(JNIEnv* env, jclass, jlong peer)
@@ -77,7 +78,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLParamElementImpl_getValueI
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLParamElementImpl_setValueImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::valueAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::valueAttr, AtomString{String(env, value)});
 }
 
 JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLParamElementImpl_getValueTypeImpl(JNIEnv* env, jclass, jlong peer)
@@ -89,7 +90,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLParamElementImpl_getValueT
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLParamElementImpl_setValueTypeImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::valuetypeAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::valuetypeAttr, AtomString{String(env, value)});
 }
 
 }

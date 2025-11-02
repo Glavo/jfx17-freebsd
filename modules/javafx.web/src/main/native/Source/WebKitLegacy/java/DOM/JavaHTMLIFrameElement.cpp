@@ -29,6 +29,7 @@
 #include <WebCore/DOMWindow.h>
 #include <WebCore/Document.h>
 #include <WebCore/HTMLIFrameElement.h>
+#include <WebCore/ElementInlines.h>
 #include <WebCore/HTMLNames.h>
 #include <WebCore/JSExecState.h>
 
@@ -56,7 +57,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLIFrameElementImpl_getAlign
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLIFrameElementImpl_setAlignImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::alignAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::alignAttr, AtomString {String(env, value)});
 }
 
 JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLIFrameElementImpl_getFrameBorderImpl(JNIEnv* env, jclass, jlong peer)
@@ -68,7 +69,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLIFrameElementImpl_getFrame
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLIFrameElementImpl_setFrameBorderImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::frameborderAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::frameborderAttr, AtomString {String(env, value)});
 }
 
 JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLIFrameElementImpl_getHeightImpl(JNIEnv* env, jclass, jlong peer)
@@ -80,7 +81,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLIFrameElementImpl_getHeigh
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLIFrameElementImpl_setHeightImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::heightAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::heightAttr, AtomString {String(env, value)});
 }
 
 JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLIFrameElementImpl_getLongDescImpl(JNIEnv* env, jclass, jlong peer)
@@ -92,7 +93,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLIFrameElementImpl_getLongD
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLIFrameElementImpl_setLongDescImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::longdescAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::longdescAttr, AtomString {String(env, value)});
 }
 
 JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLIFrameElementImpl_getMarginHeightImpl(JNIEnv* env, jclass, jlong peer)
@@ -104,7 +105,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLIFrameElementImpl_getMargi
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLIFrameElementImpl_setMarginHeightImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::marginheightAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::marginheightAttr, AtomString {String(env, value)});
 }
 
 JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLIFrameElementImpl_getMarginWidthImpl(JNIEnv* env, jclass, jlong peer)
@@ -116,7 +117,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLIFrameElementImpl_getMargi
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLIFrameElementImpl_setMarginWidthImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::marginwidthAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::marginwidthAttr, AtomString {String(env, value)});
 }
 
 JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLIFrameElementImpl_getNameImpl(JNIEnv* env, jclass, jlong peer)
@@ -128,7 +129,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLIFrameElementImpl_getNameI
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLIFrameElementImpl_setNameImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::nameAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::nameAttr, AtomString {String(env, value)});
 }
 
 JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLIFrameElementImpl_getScrollingImpl(JNIEnv* env, jclass, jlong peer)
@@ -140,7 +141,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLIFrameElementImpl_getScrol
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLIFrameElementImpl_setScrollingImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::scrollingAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::scrollingAttr, AtomString {String(env, value)});
 }
 
 JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLIFrameElementImpl_getSrcImpl(JNIEnv* env, jclass, jlong peer)
@@ -152,7 +153,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLIFrameElementImpl_getSrcIm
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLIFrameElementImpl_setSrcImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::srcAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::srcAttr, AtomString {String(env, value)});
 }
 
 JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLIFrameElementImpl_getSrcdocImpl(JNIEnv* env, jclass, jlong peer)
@@ -164,7 +165,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLIFrameElementImpl_getSrcdo
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLIFrameElementImpl_setSrcdocImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::srcdocAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::srcdocAttr, AtomString {String(env, value)});
 }
 
 JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLIFrameElementImpl_getWidthImpl(JNIEnv* env, jclass, jlong peer)
@@ -176,7 +177,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLIFrameElementImpl_getWidth
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLIFrameElementImpl_setWidthImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::widthAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::widthAttr, AtomString {String(env, value)});
 }
 
 JNIEXPORT jlong JNICALL Java_com_sun_webkit_dom_HTMLIFrameElementImpl_getContentDocumentImpl(JNIEnv* env, jclass, jlong peer)

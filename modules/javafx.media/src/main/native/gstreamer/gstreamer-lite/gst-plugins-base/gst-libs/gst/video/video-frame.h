@@ -93,12 +93,22 @@ struct _GstVideoFrame {
   gpointer _gst_reserved[GST_PADDING];
 };
 
+/**
+ * GST_VIDEO_FRAME_INIT:
+ *
+ * Initializer for #GstVideoFrame
+ *
+ * Since: 1.22
+ */
+#define GST_VIDEO_FRAME_INIT { { NULL, }, }
+
+
 GST_VIDEO_API
-gboolean    gst_video_frame_map           (GstVideoFrame *frame, GstVideoInfo *info,
+gboolean    gst_video_frame_map           (GstVideoFrame *frame, const GstVideoInfo *info,
                                            GstBuffer *buffer, GstMapFlags flags);
 
 GST_VIDEO_API
-gboolean    gst_video_frame_map_id        (GstVideoFrame *frame, GstVideoInfo *info,
+gboolean    gst_video_frame_map_id        (GstVideoFrame *frame, const GstVideoInfo *info,
                                            GstBuffer *buffer, gint id, GstMapFlags flags);
 
 GST_VIDEO_API
@@ -248,6 +258,8 @@ typedef enum {
   GST_VIDEO_FRAME_MAP_FLAG_LAST     = (GST_MAP_FLAG_LAST << 8)
   /* 8 more flags possible afterwards */
 } GstVideoFrameMapFlags;
+
+G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(GstVideoFrame, gst_video_frame_unmap)
 
 G_END_DECLS
 

@@ -151,11 +151,11 @@ struct _GstPoll
 #endif
 
   gboolean controllable;
-  volatile gint waiting;
-  volatile gint control_pending;
-  volatile gint flushing;
+  gint waiting;
+  gint control_pending;
+  gint flushing;
   gboolean timer;
-  volatile gint rebuild;
+  gint rebuild;
 };
 
 static gboolean gst_poll_fd_ctl_read_unlocked (GstPoll * set, GstPollFD * fd,
@@ -677,7 +677,7 @@ gst_poll_new (gboolean controllable)
 {
   GstPoll *nset;
 
-  nset = g_slice_new0 (GstPoll);
+  nset = g_new0 (GstPoll, 1);
   GST_DEBUG ("%p: new controllable : %d", nset, controllable);
   g_mutex_init (&nset->lock);
 #ifndef G_OS_WIN32
@@ -794,7 +794,7 @@ gst_poll_free (GstPoll * set)
   g_array_free (set->active_fds, TRUE);
   g_array_free (set->fds, TRUE);
   g_mutex_clear (&set->lock);
-  g_slice_free (GstPoll, set);
+  g_free (set);
 }
 
 /**

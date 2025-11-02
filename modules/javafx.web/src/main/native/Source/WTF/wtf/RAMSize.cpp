@@ -30,16 +30,22 @@
 
 #if OS(WINDOWS)
 #include <windows.h>
-#elif defined(USE_SYSTEM_MALLOC) && USE_SYSTEM_MALLOC
+#elif USE(SYSTEM_MALLOC)
 #if OS(LINUX)
 #include <sys/sysinfo.h>
-#endif // OS(LINUX)
+#elif OS(UNIX) || OS(HAIKU)
+#include <unistd.h>
+#endif // OS(LINUX) || OS(FREEBSD) || OS(UNIX) || OS(HAIKU)
 #else
 #include <bmalloc/bmalloc.h>
 #endif
 
 #if OS(FREEBSD)
 #include <unistd.h> // Introduced to use sysconf(int name)
+#endif
+
+#if OS(DARWIN)
+#include <mach/mach.h>
 #endif
 
 namespace WTF {
@@ -66,9 +72,13 @@ static size_t computeRAMSize()
     size_t page_size = sysconf(_SC_PAGESIZE);
     size_t phys_pages = sysconf(_SC_PHYS_PAGES);
     return  page_size * phys_pages;
+#elif OS(UNIX) || OS(HAIKU)
+    long pages = sysconf(_SC_PHYS_PAGES);
+    long pageSize = sysconf(_SC_PAGE_SIZE);
+    return pages * pageSize;
 #else
 #error "Missing a platform specific way of determining the available RAM"
-#endif // OS(LINUX)
+#endif // OS(LINUX) || OS(FREEBSD) || OS(UNIX) || OS(HAIKU)
 #else
     return bmalloc::api::availableMemory();
 #endif
@@ -83,5 +93,25 @@ size_t ramSize()
     });
     return ramSize;
 }
+
+#if OS(DARWIN)
+size_t ramSizeDisregardingJetsamLimit()
+{
+    host_basic_info_data_t hostInfo;
+
+    mach_port_t host = mach_host_self();
+    mach_msg_type_number_t count = HOST_BASIC_INFO_COUNT;
+    kern_return_t r = host_info(host, HOST_BASIC_INFO, (host_info_t)&hostInfo, &count);
+    if (mach_port_deallocate(mach_task_self(), host) != KERN_SUCCESS)
+        return 0;
+    if (r != KERN_SUCCESS)
+        return 0;
+
+    if (hostInfo.max_mem > std::numeric_limits<size_t>::max())
+        return std::numeric_limits<size_t>::max();
+
+    return static_cast<size_t>(hostInfo.max_mem);
+}
+#endif
 
 } // namespace WTF

@@ -25,9 +25,8 @@
 
 #pragma once
 
-#if ENABLE(INDEXED_DATABASE)
-
 #include "IDBCursorInfo.h"
+#include "MemoryBackingStoreTransaction.h"
 
 namespace WebCore {
 
@@ -38,7 +37,7 @@ class IDBResourceIdentifier;
 namespace IDBServer {
 
 class MemoryCursor {
-    WTF_MAKE_FAST_ALLOCATED;
+    WTF_MAKE_TZONE_ALLOCATED(MemoryCursor);
 public:
     virtual ~MemoryCursor();
 
@@ -46,14 +45,14 @@ public:
     virtual void iterate(const IDBKeyData&, const IDBKeyData& primaryKey, uint32_t count, IDBGetResult&) = 0;
 
     static MemoryCursor* cursorForIdentifier(const IDBResourceIdentifier&);
+    MemoryBackingStoreTransaction* transaction() const { return m_transaction.get(); }
 
 protected:
-    MemoryCursor(const IDBCursorInfo&);
+    MemoryCursor(const IDBCursorInfo&, MemoryBackingStoreTransaction&);
 
     IDBCursorInfo m_info;
+    WeakPtr<MemoryBackingStoreTransaction> m_transaction;
 };
 
 } // namespace IDBServer
 } // namespace WebCore
-
-#endif // ENABLE(INDEXED_DATABASE)

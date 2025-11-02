@@ -46,6 +46,14 @@ struct MediaCapabilitiesEncodingInfo : MediaCapabilitiesInfo {
     }
 
     MediaEncodingConfiguration supportedConfiguration;
+
+    MediaCapabilitiesEncodingInfo isolatedCopy() const;
+
 };
 
+inline MediaCapabilitiesEncodingInfo MediaCapabilitiesEncodingInfo::isolatedCopy() const
+{
+    return { MediaCapabilitiesInfo::isolatedCopy(), supportedConfiguration.isolatedCopy() };
 }
+
+} // namespace WebCore

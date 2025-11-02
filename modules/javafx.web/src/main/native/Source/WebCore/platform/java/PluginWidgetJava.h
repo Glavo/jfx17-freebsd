@@ -45,22 +45,21 @@ class PluginWidgetJava final : public Widget {
     String m_url;
     String m_mimeType;
     IntSize m_size;
-    Vector<String> m_paramNames;
-    Vector<String> m_paramValues;
+    Vector<AtomString> m_paramNames;
+    Vector<AtomString> m_paramValues;
 
 public:
     PluginWidgetJava(
         jobject wfh,
         HTMLPlugInElement* element,
-        const IntSize& size,
         const String& url,
         const String& mimeType,
-        const Vector<String>& paramNames,
-        const Vector<String>& paramValues);
+        const Vector<AtomString>& paramNames,
+        const Vector<AtomString>& paramValues);
     ~PluginWidgetJava() override;
 
     void invalidateRect(const IntRect&) override;
-    void paint(GraphicsContext&, const IntRect&, SecurityOriginPaintPolicy = SecurityOriginPaintPolicy::AnyOrigin, EventRegionContext* = nullptr) override;
+    void paint(GraphicsContext&, const IntRect&, SecurityOriginPaintPolicy = SecurityOriginPaintPolicy::AnyOrigin, RegionContext* = nullptr) override;
     void invalidateWindowlessPluginRect(const IntRect& rect);
     void convertToPage(IntRect& rect);
     void focusPluginElement(bool isFocused);

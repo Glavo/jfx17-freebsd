@@ -41,6 +41,7 @@ import static javafx.concurrent.Worker.State.SUCCEEDED;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeTrue;
 
 public class CanvasTest {
     private static final CountDownLatch launchLatch = new CountDownLatch(1);
@@ -95,6 +96,8 @@ public class CanvasTest {
      */
     @Test
     public void testCanvasRect() throws Exception {
+        assumeTrue(Boolean.getBoolean("web.test"));
+
         final CountDownLatch webViewStateLatch = new CountDownLatch(1);
         final String htmlCanvasContent = "\n"
             + "<canvas id='canvas' width='100' height='100'></canvas>\n"

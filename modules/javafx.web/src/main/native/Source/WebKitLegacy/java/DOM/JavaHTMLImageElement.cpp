@@ -27,6 +27,7 @@
 
 
 #include <WebCore/HTMLImageElement.h>
+#include <WebCore/ElementInlines.h>
 #include <WebCore/HTMLNames.h>
 #include <WebCore/JSExecState.h>
 
@@ -53,7 +54,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLImageElementImpl_getNameIm
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLImageElementImpl_setNameImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::nameAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::nameAttr, AtomString {String(env, value)});
 }
 
 JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLImageElementImpl_getAlignImpl(JNIEnv* env, jclass, jlong peer)
@@ -65,7 +66,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLImageElementImpl_getAlignI
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLImageElementImpl_setAlignImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::alignAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::alignAttr, AtomString {String(env, value)});
 }
 
 JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLImageElementImpl_getAltImpl(JNIEnv* env, jclass, jlong peer)
@@ -77,7 +78,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLImageElementImpl_getAltImp
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLImageElementImpl_setAltImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::altAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::altAttr, AtomString {String(env, value)});
 }
 
 JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLImageElementImpl_getBorderImpl(JNIEnv* env, jclass, jlong peer)
@@ -89,7 +90,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLImageElementImpl_getBorder
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLImageElementImpl_setBorderImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::borderAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::borderAttr, AtomString {String(env, value)});
 }
 
 JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLImageElementImpl_getCrossOriginImpl(JNIEnv* env, jclass, jlong peer)
@@ -101,7 +102,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLImageElementImpl_getCrossO
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLImageElementImpl_setCrossOriginImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setCrossOrigin(String(env, value));
+    IMPL->setCrossOrigin(AtomString {String(env, value)});
 }
 
 JNIEXPORT jint JNICALL Java_com_sun_webkit_dom_HTMLImageElementImpl_getHeightImpl(JNIEnv*, jclass, jlong peer)
@@ -149,7 +150,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLImageElementImpl_getLongDe
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLImageElementImpl_setLongDescImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::longdescAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::longdescAttr, AtomString {String(env, value)});
 }
 
 JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLImageElementImpl_getSrcImpl(JNIEnv* env, jclass, jlong peer)
@@ -161,7 +162,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLImageElementImpl_getSrcImp
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLImageElementImpl_setSrcImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::srcAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::srcAttr, AtomString {String(env, value)});
 }
 
 JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLImageElementImpl_getSrcsetImpl(JNIEnv* env, jclass, jlong peer)
@@ -173,7 +174,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLImageElementImpl_getSrcset
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLImageElementImpl_setSrcsetImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::srcsetAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::srcsetAttr, AtomString {String(env, value)});
 }
 
 JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLImageElementImpl_getSizesImpl(JNIEnv* env, jclass, jlong peer)
@@ -185,7 +186,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLImageElementImpl_getSizesI
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLImageElementImpl_setSizesImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::sizesAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::sizesAttr, AtomString {String(env, value)});
 }
 
 JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLImageElementImpl_getCurrentSrcImpl(JNIEnv* env, jclass, jlong peer)
@@ -203,7 +204,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLImageElementImpl_getUseMap
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLImageElementImpl_setUseMapImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::usemapAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::usemapAttr, AtomString {String(env, value)});
 }
 
 JNIEXPORT jint JNICALL Java_com_sun_webkit_dom_HTMLImageElementImpl_getVspaceImpl(JNIEnv*, jclass, jlong peer)
@@ -245,7 +246,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_webkit_dom_HTMLImageElementImpl_getLowsrc
 JNIEXPORT void JNICALL Java_com_sun_webkit_dom_HTMLImageElementImpl_setLowsrcImpl(JNIEnv* env, jclass, jlong peer, jstring value)
 {
     WebCore::JSMainThreadNullState state;
-    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::lowsrcAttr, String(env, value));
+    IMPL->setAttributeWithoutSynchronization(WebCore::HTMLNames::lowsrcAttr, AtomString {String(env, value)});
 }
 
 JNIEXPORT jint JNICALL Java_com_sun_webkit_dom_HTMLImageElementImpl_getNaturalHeightImpl(JNIEnv*, jclass, jlong peer)

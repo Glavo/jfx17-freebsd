@@ -45,6 +45,7 @@ import org.junit.Test;
 import test.util.Util;
 
 import static org.junit.Assert.*;
+import static org.junit.Assume.*;
 import static test.util.Util.TIMEOUT;
 
 public class JSCallbackMemoryTest {
@@ -182,6 +183,7 @@ public class JSCallbackMemoryTest {
 
     @BeforeClass
     public static void doSetupOnce() throws Exception {
+        assumeTrue(Boolean.getBoolean("web.test"));
 
         Platform.setImplicitExit(false);
         Platform.startup(() -> {

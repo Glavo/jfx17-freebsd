@@ -52,6 +52,7 @@ import org.junit.Test;
 import test.util.Util;
 
 import static org.junit.Assert.*;
+import static org.junit.Assume.assumeTrue;
 import static test.util.Util.TIMEOUT;
 
 /**
@@ -167,6 +168,7 @@ public class NullCCLTest {
 
     @Test
     public void testHTMLEditor() {
+        assumeTrue(Boolean.getBoolean("web.test"));
         doTest(() -> {
             HTMLEditor htmlEditor = new HTMLEditor();
             htmlEditor.setHtmlText("<html><body>Hello, World!</body></html>");
@@ -176,6 +178,8 @@ public class NullCCLTest {
 
     @Test
     public void testWebView() throws Exception {
+        assumeTrue(Boolean.getBoolean("web.test"));
+
         final String HTML_FILE_NAME = "test.html";
 
         URL url = NullCCLTest.class.getResource(HTML_FILE_NAME);

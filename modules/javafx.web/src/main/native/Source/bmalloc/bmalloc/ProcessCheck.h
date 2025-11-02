@@ -39,6 +39,16 @@ bool gigacageEnabledForProcess();
 inline bool gigacageEnabledForProcess() { return true; }
 #endif
 
+#if BOS(DARWIN) && !BPLATFORM_JAVA
+const char* processNameString();
+bool shouldAllowMiniMode();
+#else
+inline const char* processNameString() {
+    return "FakeProcessName";
+}
+inline bool shouldAllowMiniMode() { return true; }
+#endif
+
 #if BPLATFORM(IOS_FAMILY)
 bool shouldProcessUnconditionallyUseBmalloc();
 #endif

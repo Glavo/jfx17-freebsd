@@ -1,6 +1,8 @@
 /* GLIB - Library of useful routines for C programming
  * Copyright (C) 1995-1997  Peter Mattis, Spencer Kimball and Josh MacDonald
  *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
@@ -37,26 +39,8 @@
 #include "gstring.h"
 #include "guriprivate.h"
 #include "gprintf.h"
+#include "gutilsprivate.h"
 
-
-/**
- * SECTION:strings
- * @title: Strings
- * @short_description: text buffers which grow automatically
- *     as text is added
- *
- * A #GString is an object that handles the memory management of a C
- * string for you.  The emphasis of #GString is on text, typically
- * UTF-8.  Crucially, the "str" member of a #GString is guaranteed to
- * have a trailing nul character, and it is therefore always safe to
- * call functions such as strchr() or g_strdup() on it.
- *
- * However, a #GString can also hold arbitrary binary data, because it
- * has a "len" member, which includes any possible embedded nul
- * characters in the data.  Conceptually then, #GString is like a
- * #GByteArray with the addition of many convenience methods for text,
- * and a guaranteed nul terminator.
- */
 
 /**
  * GString:
@@ -68,52 +52,54 @@
  * @allocated_len: the number of bytes that can be stored in the
  *   string before it needs to be reallocated. May be larger than @len.
  *
- * The GString struct contains the public fields of a GString.
+ * A `GString` is an object that handles the memory management of a C string.
+ *
+ * The emphasis of `GString` is on text, typically UTF-8. Crucially, the "str" member
+ * of a `GString` is guaranteed to have a trailing nul character, and it is therefore
+ * always safe to call functions such as `strchr()` or `strdup()` on it.
+ *
+ * However, a `GString` can also hold arbitrary binary data, because it has a "len" member,
+ * which includes any possible embedded nul characters in the data. Conceptually then,
+ * `GString` is like a `GByteArray` with the addition of many convenience methods for
+ * text, and a guaranteed nul terminator.
  */
 
-
-#define MY_MAXSIZE ((gsize)-1)
-
-static inline gsize
-nearest_power (gsize base, gsize num)
+static void
+g_string_expand (GString *string,
+                 gsize    len)
 {
-  if (num > MY_MAXSIZE / 2)
-    {
-      return MY_MAXSIZE;
-    }
-  else
-    {
-      gsize n = base;
+  /* Detect potential overflow */
+  if G_UNLIKELY ((G_MAXSIZE - string->len - 1) < len)
+    g_error ("adding %" G_GSIZE_FORMAT " to string would overflow", len);
 
-      while (n < num)
-        n <<= 1;
+  string->allocated_len = g_nearest_pow (string->len + len + 1);
+  /* If the new size is bigger than G_MAXSIZE / 2, only allocate enough
+   * memory for this string and don't over-allocate.
+   */
+  if (string->allocated_len == 0)
+    string->allocated_len = string->len + len + 1;
 
-      return n;
-    }
+  string->str = g_realloc (string->str, string->allocated_len);
 }
 
-static void
+static inline void
 g_string_maybe_expand (GString *string,
                        gsize    len)
 {
-  if (string->len + len >= string->allocated_len)
-    {
-      string->allocated_len = nearest_power (1, string->len + len + 1);
-      string->str = g_realloc (string->str, string->allocated_len);
-    }
+  if (G_UNLIKELY (string->len + len >= string->allocated_len))
+    g_string_expand (string, len);
 }
 
 /**
- * g_string_sized_new:
- * @dfl_size: the default size of the space allocated to
- *     hold the string
+ * g_string_sized_new: (constructor)
+ * @dfl_size: the default size of the space allocated to hold the string
  *
  * Creates a new #GString, with enough space for @dfl_size
  * bytes. This is useful if you are going to add a lot of
  * text to the string and don't want it to be reallocated
  * too often.
  *
- * Returns: the new #GString
+ * Returns: (transfer full): the new #GString
  */
 GString *
 g_string_sized_new (gsize dfl_size)
@@ -129,20 +115,20 @@ g_string_sized_new (gsize dfl_size)
   string->len   = 0;
   string->str   = NULL;
 
-  g_string_maybe_expand (string, MAX (dfl_size, 2));
+  g_string_expand (string, MAX (dfl_size, 64));
   string->str[0] = 0;
 
   return string;
 }
 
 /**
- * g_string_new:
+ * g_string_new: (constructor)
  * @init: (nullable): the initial text to copy into the string, or %NULL to
- * start with an empty string
+ *   start with an empty string
  *
  * Creates a new #GString, initialized with the given string.
  *
- * Returns: the new #GString
+ * Returns: (transfer full): the new #GString
  */
 GString *
 g_string_new (const gchar *init)
@@ -153,7 +139,7 @@ g_string_new (const gchar *init)
     string = g_string_sized_new (2);
   else
     {
-      gint len;
+      size_t len;
 
       len = strlen (init);
       string = g_string_sized_new (len + 2);
@@ -165,7 +151,42 @@ g_string_new (const gchar *init)
 }
 
 /**
- * g_string_new_len:
+ * g_string_new_take: (constructor)
+ * @init: (nullable) (transfer full): initial text used as the string.
+ *     Ownership of the string is transferred to the #GString.
+ *     Passing %NULL creates an empty string.
+ *
+ * Creates a new #GString, initialized with the given string.
+ *
+ * After this call, @init belongs to the #GString and may no longer be
+ * modified by the caller. The memory of @data has to be dynamically
+ * allocated and will eventually be freed with g_free().
+ *
+ * Returns: (transfer full): the new #GString
+ *
+ * Since: 2.78
+ */
+GString *
+g_string_new_take (gchar *init)
+{
+  GString *string;
+
+  if (init == NULL)
+    {
+      return g_string_new (NULL);
+    }
+
+  string = g_slice_new (GString);
+
+  string->str = init;
+  string->len = strlen (string->str);
+  string->allocated_len = string->len + 1;
+
+  return string;
+}
+
+/**
+ * g_string_new_len: (constructor)
  * @init: initial contents of the string
  * @len: length of @init to use
  *
@@ -177,7 +198,7 @@ g_string_new (const gchar *init)
  * responsibility to ensure that @init has at least @len addressable
  * bytes.
  *
- * Returns: a new #GString
+ * Returns: (transfer full): a new #GString
  */
 GString *
 g_string_new_len (const gchar *init,
@@ -208,12 +229,15 @@ g_string_new_len (const gchar *init,
  * it's %FALSE, the caller gains ownership of the buffer and must
  * free it after use with g_free().
  *
+ * Instead of passing %FALSE to this function, consider using
+ * g_string_free_and_steal().
+ *
  * Returns: (nullable): the character data of @string
  *          (i.e. %NULL if @free_segment is %TRUE)
  */
 gchar *
-g_string_free (GString  *string,
-               gboolean  free_segment)
+(g_string_free) (GString  *string,
+                 gboolean  free_segment)
 {
   gchar *segment;
 
@@ -230,6 +254,25 @@ g_string_free (GString  *string,
   g_slice_free (GString, string);
 
   return segment;
+}
+
+/**
+ * g_string_free_and_steal:
+ * @string: (transfer full): a #GString
+ *
+ * Frees the memory allocated for the #GString.
+ *
+ * The caller gains ownership of the buffer and
+ * must free it after use with g_free().
+ *
+ * Returns: (transfer full): the character data of @string
+ *
+ * Since: 2.76
+ */
+gchar *
+g_string_free_and_steal (GString *string)
+{
+  return (g_string_free) (string, FALSE);
 }
 
 /**
@@ -367,8 +410,8 @@ g_string_assign (GString     *string,
  * Returns: (transfer none): @string
  */
 GString *
-g_string_truncate (GString *string,
-                   gsize    len)
+(g_string_truncate) (GString *string,
+                     gsize    len)
 {
   g_return_val_if_fail (string != NULL, NULL);
 
@@ -548,8 +591,8 @@ g_string_append_uri_escaped (GString     *string,
  * Returns: (transfer none): @string
  */
 GString *
-g_string_append (GString     *string,
-                 const gchar *val)
+(g_string_append) (GString     *string,
+                   const gchar *val)
 {
   return g_string_insert_len (string, -1, val, -1);
 }
@@ -573,9 +616,9 @@ g_string_append (GString     *string,
  * Returns: (transfer none): @string
  */
 GString *
-g_string_append_len (GString     *string,
-                     const gchar *val,
-                     gssize       len)
+(g_string_append_len) (GString     *string,
+                       const gchar *val,
+                       gssize       len)
 {
   return g_string_insert_len (string, -1, val, len);
 }
@@ -590,10 +633,9 @@ g_string_append_len (GString     *string,
  *
  * Returns: (transfer none): @string
  */
-#undef g_string_append_c
 GString *
-g_string_append_c (GString *string,
-                   gchar    c)
+(g_string_append_c) (GString *string,
+                     gchar    c)
 {
   g_return_val_if_fail (string != NULL, NULL);
 
@@ -959,6 +1001,69 @@ g_string_erase (GString *string,
 }
 
 /**
+ * g_string_replace:
+ * @string: a #GString
+ * @find: the string to find in @string
+ * @replace: the string to insert in place of @find
+ * @limit: the maximum instances of @find to replace with @replace, or `0` for
+ * no limit
+ *
+ * Replaces the string @find with the string @replace in a #GString up to
+ * @limit times. If the number of instances of @find in the #GString is
+ * less than @limit, all instances are replaced. If @limit is `0`,
+ * all instances of @find are replaced.
+ *
+ * If @find is the empty string, since versions 2.69.1 and 2.68.4 the
+ * replacement will be inserted no more than once per possible position
+ * (beginning of string, end of string and between characters). This did
+ * not work correctly in earlier versions.
+ *
+ * Returns: the number of find and replace operations performed.
+ *
+ * Since: 2.68
+ */
+guint
+g_string_replace (GString     *string,
+                  const gchar *find,
+                  const gchar *replace,
+                  guint        limit)
+{
+  gsize f_len, r_len, pos;
+  gchar *cur, *next;
+  guint n = 0;
+
+  g_return_val_if_fail (string != NULL, 0);
+  g_return_val_if_fail (find != NULL, 0);
+  g_return_val_if_fail (replace != NULL, 0);
+
+  f_len = strlen (find);
+  r_len = strlen (replace);
+  cur = string->str;
+
+  while ((next = strstr (cur, find)) != NULL)
+    {
+      pos = next - string->str;
+      g_string_erase (string, pos, f_len);
+      g_string_insert (string, pos, replace);
+      cur = string->str + pos + r_len;
+      n++;
+      /* Only match the empty string once at any given position, to
+       * avoid infinite loops */
+      if (f_len == 0)
+        {
+          if (cur[0] == '\0')
+            break;
+          else
+            cur++;
+        }
+      if (n == limit)
+        break;
+    }
+
+  return n;
+}
+
+/**
  * g_string_ascii_down:
  * @string: a GString
  *
@@ -1120,6 +1225,10 @@ g_string_append_vprintf (GString     *string,
       memcpy (string->str + string->len, buf, len + 1);
       string->len += len;
       g_free (buf);
+    }
+  else
+    {
+      g_critical ("Failed to append to string: invalid format/args passed to g_vasprintf()");
     }
 }
 

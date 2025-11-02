@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2102,14 +2102,12 @@ public class TabPaneSkin extends SkinBase<TabPane> {
 
     private void handleHeaderMousePressed(MouseEvent event) {
         if (event.getButton().equals(MouseButton.PRIMARY)) {
-            ((StackPane) event.getSource()).setMouseTransparent(true);
             startDrag(event);
         }
     }
 
     private void handleHeaderMouseReleased(MouseEvent event) {
         if (event.getButton().equals(MouseButton.PRIMARY)) {
-            ((StackPane) event.getSource()).setMouseTransparent(false);
             stopDrag();
             event.consume();
         }
@@ -2144,7 +2142,7 @@ public class TabPaneSkin extends SkinBase<TabPane> {
         if (dragState == DragState.NONE) {
             return;
         }
-        int dragDirection;
+        int dragDirection = 0;
         double dragHeaderNewLayoutX;
         Bounds dragHeaderBounds;
         Bounds dropHeaderBounds;
@@ -2155,12 +2153,12 @@ public class TabPaneSkin extends SkinBase<TabPane> {
         if (dragDelta > 0) {
             // Dragging the tab header towards higher indexed tab headers inside headersRegion.
             dragDirection = MIN_TO_MAX;
-        } else {
+        } else if (dragDelta < 0) {
             // Dragging the tab header towards lower indexed tab headers inside headersRegion.
             dragDirection = MAX_TO_MIN;
         }
         // Stop dropHeaderAnim if direction of drag is changed
-        if (prevDragDirection != dragDirection) {
+        if (dragDirection != 0 && prevDragDirection != dragDirection) {
             stopAnim(dropHeaderAnim);
             prevDragDirection = dragDirection;
         }

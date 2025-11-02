@@ -147,15 +147,13 @@ JNIEXPORT jobject JNICALL Java_com_sun_webkit_WCPluginWidget_twkConvertToPage
 PluginWidgetJava::PluginWidgetJava(
     jobject wfh,
     HTMLPlugInElement* element,
-    const IntSize& size,
     const String& url,
     const String& mimeType,
-    const Vector<String>& paramNames,
-    const Vector<String>& paramValues)
+    const Vector<AtomString>& paramNames,
+    const Vector<AtomString>& paramValues)
       : m_element(element),
         m_url(url),
         m_mimeType(mimeType),
-        m_size(size),
         m_paramNames(paramNames),
         m_paramValues(paramValues)
 {
@@ -171,12 +169,12 @@ PluginWidgetJava::PluginWidgetJava(
 
     jobjectArray pNames = strVect2JArray(env, paramNames);
     jobjectArray pValues = strVect2JArray(env, paramValues);
-
+    jint width = 0,height=0;
     JLObject obj(env->CallStaticObjectMethod(
                                                        cls,
                                                        pluginWidgetCreateMID,
                                                        wfh,
-                                                       size.width(), size.height(),
+                                                       width,height,
                                                        (jstring)urlJavaString,
                                                        (jstring)mimeTypeJavaString,
                                                        pNames, pValues));
@@ -203,7 +201,7 @@ void PluginWidgetJava::paint(
     GraphicsContext& context,
     const IntRect& rc /*page coordinates*/,
     SecurityOriginPaintPolicy,
-    EventRegionContext*) {
+    RegionContext*) {
     //Widget::paint(context, rc);
     /*
     if (!m_isStarted) {
@@ -212,8 +210,8 @@ void PluginWidgetJava::paint(
         return;
     }
     */
-    if (context.paintingDisabled())
-        return;
+    //if (context.paintingDisabled())
+        //return;
 
     JLObject obj = platformWidget();
     if (obj){
@@ -264,8 +262,6 @@ void PluginWidgetJava::updatePluginWidget()
 {
     if (!parent())
         return;
-
-    ASSERT(parent()->isFrameView());
 
     FrameView* frameView = static_cast<FrameView*>(parent());
     IntRect windowRect(frameView->contentsToWindow(frameRect().location()), frameRect().size());

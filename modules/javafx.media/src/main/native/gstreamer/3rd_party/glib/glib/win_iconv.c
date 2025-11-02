@@ -1087,7 +1087,7 @@ ucs4_to_utf16(uint wc, ushort *wbuf, int *wbufsize)
 /*
  * Check if codepage is one of those for which the dwFlags parameter
  * to MultiByteToWideChar() must be zero. Return zero or
- * MB_ERR_INVALID_CHARS.  The docs in Platform SDK for for Windows
+ * MB_ERR_INVALID_CHARS.  The docs in Platform SDK for Windows
  * Server 2003 R2 claims that also codepage 65001 is one of these, but
  * that doesn't seem to be the case. The MSDN docs for MSVS2008 leave
  * out 65001 (UTF-8), and that indeed seems to be the case on XP, it
@@ -1680,7 +1680,7 @@ utf32_wctomb(csconv_t *cv, ushort *wbuf, int wbufsize, uchar *buf, int bufsize)
  * Use MLang instead.
  */
 
-#define ISO2022_MODE(cs, shift) (((cs) << 8) | (shift))
+#define ISO2022_MODE(cs, shift) ((((DWORD) cs) << 8) | (shift))
 #define ISO2022_MODE_CS(mode) (((mode) >> 8) & 0xFF)
 #define ISO2022_MODE_SHIFT(mode) ((mode) & 0xFF)
 
@@ -2034,7 +2034,8 @@ main(int argc, char **argv)
 
     if (fromcode == NULL || tocode == NULL)
     {
-        printf("usage: %s [-c] -f from-enc -t to-enc [file]\n", argv[0]);
+        printf("usage: %s [-c] -f from-enc -t to-enc [file]\n",
+               (argc > 0) ? argv[0] : "win_iconv");
         return 0;
     }
 

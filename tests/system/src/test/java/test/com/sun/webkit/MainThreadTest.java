@@ -29,6 +29,7 @@ import java.io.File;
 import static java.util.Arrays.asList;
 import java.util.List;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assume.assumeTrue;
 import org.junit.Test;
 
 /**
@@ -39,6 +40,8 @@ import org.junit.Test;
 public class MainThreadTest {
     @Test (timeout = 15000)
     public void testMainThreadDoesNotSegfault() throws Exception {
+        assumeTrue(Boolean.getBoolean("web.test"));
+
         // This is an indirect test of the webkit main thread <-> java
         // integration. It was observed, that using a data-url caused the
         // JVM to segfault. That case is executed by this test:

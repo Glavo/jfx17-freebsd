@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,11 +37,12 @@ public:
     }
 
     ResourceError(const String& domain, int errorCode,
-                  const URL& failingURL, const String& localizedDescription, Type type = Type::General)
-        : ResourceErrorBase(domain, errorCode, failingURL, localizedDescription, type)
+                  const URL& failingURL, const String& localizedDescription, Type type = Type::General, IsSanitized isSanitized = IsSanitized::No)
+        : ResourceErrorBase(domain, errorCode, failingURL, localizedDescription, type, isSanitized)
     {
     }
 
+    ErrorRecoveryMethod errorRecoveryMethod() const { return ErrorRecoveryMethod::NoRecovery; }
 private:
     friend class ResourceErrorBase;
     void doPlatformIsolatedCopy(const ResourceError&) { }

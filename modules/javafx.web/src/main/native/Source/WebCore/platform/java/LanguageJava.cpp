@@ -27,6 +27,7 @@
 
 #include "ChromiumBridge.h"
 #include <wtf/Language.h>
+#include <wtf/NeverDestroyed.h>
 #include <wtf/Vector.h>
 #include <wtf/text/WTFString.h>
 
@@ -36,7 +37,7 @@ static String platformLanguage()
 {
     static NeverDestroyed<String> computedDefaultLanguage;
     if (computedDefaultLanguage.get().isEmpty())
-        computedDefaultLanguage.get().append(ChromiumBridge::computedDefaultLanguage());
+        return ChromiumBridge::computedDefaultLanguage();
     return computedDefaultLanguage;
 }
 

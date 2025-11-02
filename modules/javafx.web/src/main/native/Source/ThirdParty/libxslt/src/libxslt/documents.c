@@ -36,9 +36,9 @@
 #endif
 
 /************************************************************************
- *                                  *
- *      Hooks for the document loader               *
- *                                  *
+ *                                    *
+ *        Hooks for the document loader                *
+ *                                    *
  ************************************************************************/
 
 /**
@@ -87,9 +87,11 @@ xsltDocDefaultLoaderFunc(const xmlChar * URI, xmlDictPtr dict, int options,
         xmlFreeParserCtxt(pctxt);
     return(NULL);
     }
+
+#if LIBXML_VERSION >= 21300
+    doc = xmlCtxtParseDocument(pctxt, inputStream);
+#else
     inputPush(pctxt, inputStream);
-    if (pctxt->directory == NULL)
-        pctxt->directory = xmlParserGetDirectory((const char *) URI);
 
     xmlParseDocument(pctxt);
 
@@ -101,6 +103,8 @@ xsltDocDefaultLoaderFunc(const xmlChar * URI, xmlDictPtr dict, int options,
         xmlFreeDoc(pctxt->myDoc);
         pctxt->myDoc = NULL;
     }
+#endif
+
     xmlFreeParserCtxt(pctxt);
 
     return(doc);
@@ -126,9 +130,9 @@ xsltSetLoaderFunc(xsltDocLoaderFunc f) {
 }
 
 /************************************************************************
- *                                  *
- *          Module interfaces               *
- *                                  *
+ *                                    *
+ *            Module interfaces                *
+ *                                    *
  ************************************************************************/
 
 /**
@@ -399,6 +403,8 @@ xsltLoadStyleDocument(xsltStylesheetPtr style, const xmlChar *URI) {
     return(NULL);
 
     ret = xsltNewStyleDocument(style, doc);
+    if (ret == NULL)
+        xmlFreeDoc(doc);
     return(ret);
 }
 

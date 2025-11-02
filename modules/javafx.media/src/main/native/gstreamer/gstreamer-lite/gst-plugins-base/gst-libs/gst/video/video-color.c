@@ -269,6 +269,38 @@ gst_video_colorimetry_is_equal (const GstVideoColorimetry * cinfo,
   return CI_IS_EQUAL (cinfo, other);
 }
 
+/**
+ * gst_video_colorimetry_is_equivalent:
+ * @cinfo: a #GstVideoColorimetry
+ * @bitdepth: bitdepth of a format associated with @cinfo
+ * @other: another #GstVideoColorimetry
+ * @other_bitdepth: bitdepth of a format associated with @other
+ *
+ * Compare the 2 colorimetry sets for functionally equality
+ *
+ * Returns: %TRUE if @cinfo and @other are equivalent.
+ *
+ * Since: 1.22
+ */
+gboolean
+gst_video_colorimetry_is_equivalent (const GstVideoColorimetry * cinfo,
+    guint bitdepth, const GstVideoColorimetry * other, guint other_bitdepth)
+{
+  g_return_val_if_fail (cinfo != NULL, FALSE);
+  g_return_val_if_fail (other != NULL, FALSE);
+
+  if (cinfo->range != other->range || cinfo->matrix != other->matrix)
+    return FALSE;
+
+  if (!gst_video_color_primaries_is_equivalent (cinfo->primaries,
+          other->primaries)) {
+    return FALSE;
+  }
+
+  return gst_video_transfer_function_is_equivalent (cinfo->transfer, bitdepth,
+      other->transfer, other_bitdepth);
+}
+
 #define WP_C    0.31006, 0.31616
 #define WP_D65  0.31271, 0.32902
 #define WP_CENTRE (1/3), (1/3)
@@ -317,6 +349,35 @@ gst_video_color_primaries_get_info (GstVideoColorPrimaries primaries)
       G_N_ELEMENTS (color_primaries), NULL);
 
   return &color_primaries[primaries];
+}
+
+/**
+ * gst_video_color_primaries_is_equivalent:
+ * @primaries: a #GstVideoColorPrimaries
+ * @other: another #GstVideoColorPrimaries
+ *
+ * Checks whether @primaries and @other are functionally equivalent
+ *
+ * Returns: TRUE if @primaries and @other can be considered equivalent.
+ *
+ * Since: 1.22
+ */
+gboolean
+gst_video_color_primaries_is_equivalent (GstVideoColorPrimaries primaries,
+    GstVideoColorPrimaries other)
+{
+  if (primaries == other)
+    return TRUE;
+
+  /* smpte-170m and 240m use the same reference RGB primaries and white point */
+  if ((primaries == GST_VIDEO_COLOR_PRIMARIES_SMPTE170M ||
+          primaries == GST_VIDEO_COLOR_PRIMARIES_SMPTE240M) &&
+      (other == GST_VIDEO_COLOR_PRIMARIES_SMPTE170M ||
+          other == GST_VIDEO_COLOR_PRIMARIES_SMPTE240M)) {
+    return TRUE;
+  }
+
+  return FALSE;
 }
 
 /**
@@ -399,6 +460,21 @@ gst_video_color_matrix_get_Kr_Kb (GstVideoColorMatrix matrix, gdouble * Kr,
  * @func: a #GstVideoTransferFunction
  * @val: a value
  *
+ * Deprecated: 1.20: Use gst_video_transfer_function_encode() instead.
+ *
+ * Since: 1.6
+ */
+gdouble
+gst_video_color_transfer_encode (GstVideoTransferFunction func, gdouble val)
+{
+  return gst_video_transfer_function_encode (func, val);
+}
+
+/**
+ * gst_video_transfer_function_encode:
+ * @func: a #GstVideoTransferFunction
+ * @val: a value
+ *
  * Convert @val to its gamma encoded value.
  *
  * For a linear value L in the range [0..1], conversion to the non-linear
@@ -413,10 +489,10 @@ gst_video_color_matrix_get_Kr_Kb (GstVideoColorMatrix matrix, gdouble * Kr,
  *
  * Returns: the gamma encoded value of @val
  *
- * Since: 1.6
+ * Since: 1.20
  */
 gdouble
-gst_video_color_transfer_encode (GstVideoTransferFunction func, gdouble val)
+gst_video_transfer_function_encode (GstVideoTransferFunction func, gdouble val)
 {
   gdouble res;
 
@@ -481,16 +557,16 @@ gst_video_color_transfer_encode (GstVideoTransferFunction func, gdouble val)
       break;
     case GST_VIDEO_TRANSFER_SMPTE2084:
     {
-      gdouble c1 = 3424.0 / 4096.0;     /* c3 - c2 + 1 */
-      gdouble c2 = 32 * 2413 / 4096.0;
-      gdouble c3 = 32 * 2392 / 4096.0;
-      gdouble m = 128 * 2523 / 4096.0;
-      gdouble n = 0.25 * 2610 / 4096.0;
-      gdouble Ln = pow (val, n);
+      gdouble c1 = 0.8359375;
+      gdouble c2 = 18.8515625;
+      gdouble c3 = 18.6875;
+      gdouble m1 = 0.1593017578125;
+      gdouble m2 = 78.84375;
+      gdouble Ln = pow (val, m1);
 
       /* val equal to 1 for peak white is ordinarily intended to
        * correspond to a reference output luminance level of 10000 cd/m^2  */
-      res = pow ((c1 + c2 * Ln) / (1.0 + c3 * Ln), m);
+      res = pow ((c1 + c2 * Ln) / (1.0 + c3 * Ln), m2);
       break;
     }
     case GST_VIDEO_TRANSFER_ARIB_STD_B67:
@@ -516,8 +592,23 @@ gst_video_color_transfer_encode (GstVideoTransferFunction func, gdouble val)
  * @func: a #GstVideoTransferFunction
  * @val: a value
  *
+ * Deprecated: 1.20: Use gst_video_transfer_function_decode() instead.
+ *
+ * Since: 1.6
+ */
+gdouble
+gst_video_color_transfer_decode (GstVideoTransferFunction func, gdouble val)
+{
+  return gst_video_transfer_function_decode (func, val);
+}
+
+/**
+ * gst_video_transfer_function_decode:
+ * @func: a #GstVideoTransferFunction
+ * @val: a value
+ *
  * Convert @val to its gamma decoded value. This is the inverse operation of
- * @gst_video_color_transfer_encode().
+ * gst_video_color_transfer_encode().
  *
  * For a non-linear value L' in the range [0..1], conversion to the linear
  * L is in general performed with a power function like:
@@ -531,10 +622,10 @@ gst_video_color_transfer_encode (GstVideoTransferFunction func, gdouble val)
  *
  * Returns: the gamma decoded value of @val
  *
- * Since: 1.6
+ * Since: 1.20
  */
 gdouble
-gst_video_color_transfer_decode (GstVideoTransferFunction func, gdouble val)
+gst_video_transfer_function_decode (GstVideoTransferFunction func, gdouble val)
 {
   gdouble res;
 
@@ -599,14 +690,15 @@ gst_video_color_transfer_decode (GstVideoTransferFunction func, gdouble val)
       break;
     case GST_VIDEO_TRANSFER_SMPTE2084:
     {
-      gdouble c1 = 3424.0 / 4096.0;     /* c3 - c2 + 1 */
-      gdouble c2 = 32 * 2413 / 4096.0;
-      gdouble c3 = 32 * 2392 / 4096.0;
-      gdouble mi = 1 / (128 * 2523 / 4096.0);
-      gdouble ni = 1 / (0.25 * 2610 / 4096.0);
-      gdouble nm = pow (val, mi);
+      gdouble c1 = 0.8359375;
+      gdouble c2 = 18.8515625;
+      gdouble c3 = 18.6875;
+      gdouble m1 = 0.1593017578125;
+      gdouble m2 = 78.84375;
+      gdouble tmp = pow (val, 1 / m2);
+      gdouble tmp2 = MAX (tmp - c1, 0.0f);
 
-      res = pow ((nm - c1) / (c2 - c3 * nm), ni);
+      res = pow (tmp2 / (c2 - c3 * tmp), 1 / m1);
       break;
     }
     case GST_VIDEO_TRANSFER_ARIB_STD_B67:

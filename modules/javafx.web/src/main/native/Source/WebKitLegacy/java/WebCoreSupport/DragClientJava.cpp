@@ -68,7 +68,7 @@ OptionSet<DragSourceAction> DragClientJava::dragSourceActionMaskForPoint(const I
     return WebCore::anyDragSourceAction();
 }
 
-void DragClientJava::startDrag(DragItem item, DataTransfer& dataTransfer, Frame&)
+void DragClientJava::startDrag(DragItem item, DataTransfer& dataTransfer, Frame& localFrame)
 {
     auto& dragImage = item.image;
     auto dragImageOrigin = item.dragLocationInContentCoordinates;
@@ -95,13 +95,13 @@ void DragClientJava::startDrag(DragItem item, DataTransfer& dataTransfer, Frame&
     // for transfer-to-Java purposes.
     auto actualStoreMode = dataTransfer.storeMode();
     dataTransfer.setStoreMode(DataTransfer::StoreMode::Readonly);
-
-    Vector<String> mimeTypes(dataTransfer.types());
+    auto& localFrameRef = downcast<LocalFrame>(localFrame);
+    Vector<String> mimeTypes(dataTransfer.types(*localFrameRef.document()));
     JLObjectArray jmimeTypes(env->NewObjectArray(mimeTypes.size(), clsString, NULL));
     JLObjectArray jvalues(env->NewObjectArray(mimeTypes.size(), clsObject, NULL));
     WTF::CheckAndClearException(env); // OOME
 
-    auto document = WebPage::pageFromJObject(m_webPage)->mainFrame().document();
+    auto document = (dynamicDowncast<LocalFrame>(WebPage::pageFromJObject(m_webPage)->mainFrame()))->document();
     if (document) {
         int index = 0;
         for(const auto& mime : mimeTypes) {
@@ -124,8 +124,9 @@ void DragClientJava::startDrag(DragItem item, DataTransfer& dataTransfer, Frame&
 
     // Attention! [jimage] can be the instance of WCImage or WCImageFrame class.
     // The nature of raster is too different to make a conversion inside the native code.
-    jobject jimage = dragImage.get() && dragImage.get()->javaImage()
-                  ? jobject(*(dragImage.get()->javaImage())) : nullptr;
+    jobject jimage = (dragImage.get() && dragImage.get()->javaImage()
+        && dragImage.get()->javaImage()->platformImage()->getImage()) ?
+        jobject(*(dragImage.get()->javaImage()->platformImage()->getImage())) : nullptr;
 
     bool isImageSource = dragSourceAction && (*dragSourceAction == DragSourceAction::Image);
 

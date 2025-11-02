@@ -44,6 +44,7 @@ import static javafx.concurrent.Worker.State.SUCCEEDED;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeTrue;
 
 public class SVGTest {
     private static final CountDownLatch launchLatch = new CountDownLatch(1);
@@ -71,6 +72,8 @@ public class SVGTest {
 
     @BeforeClass
     public static void setupOnce() {
+        assumeTrue(Boolean.getBoolean("web.test"));
+
         // Start the Test Application
         new Thread(() -> Application.launch(SVGTestApp.class, (String[])null)).start();
 

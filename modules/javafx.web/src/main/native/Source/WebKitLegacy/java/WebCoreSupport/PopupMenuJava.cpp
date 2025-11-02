@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -109,31 +109,31 @@ void PopupMenuJava::populate()
         JLString itemTextJ(itemText.toJavaString(env));
         ASSERT(itemTextJ);
         PopupMenuStyle style = client()->itemStyle(i);
-        auto [r1, g1, b1, a1] = style.backgroundColor().toSRGBALossy<uint8_t>();
-        auto [r2, g2, b2, a2] = style.foregroundColor().toSRGBALossy<uint8_t>();
+        auto [r1, g1, b1, a1] = style.backgroundColor().toColorTypeLossy<SRGBA<uint8_t>>().resolved();
+        auto [r2, g2, b2, a2] = style.foregroundColor().toColorTypeLossy<SRGBA<uint8_t>>().resolved();
         env->CallVoidMethod(m_popup, mid, (jstring)itemTextJ,
                             bool_to_jbool(client()->itemIsLabel(i)),
                             bool_to_jbool(client()->itemIsSeparator(i)),
                             bool_to_jbool(client()->itemIsEnabled(i)),
                             (jint)(a1 << 24 | r1 << 16 | g1 << 8 | b1),
                             (jint)(a2 << 24 | r2 << 16 | g2 << 8 | b2),
-                            (jobject)*style.font().primaryFont().platformData().nativeFontData());
+                            (jobject)*style.font().primaryFont().get().platformData().nativeFontData());
         WTF::CheckAndClearException(env);
     }
 }
 
-void PopupMenuJava::show(const IntRect& r, FrameView* frameView, int index)
+void PopupMenuJava::show(const IntRect& r,  LocalFrameView& frameView, int selectedIndex)
 {
     JNIEnv* env = WTF::GetJavaEnv();
 
-    ASSERT(frameView->frame().page());
+    ASSERT(frameView.frame().page());
 
-    createPopupMenuJava(frameView->frame().page());
+    createPopupMenuJava(frameView.frame().page());
     populate();
-    setSelectedItem(m_popup, index);
+    setSelectedItem(m_popup, selectedIndex);
 
     // r is in contents coordinates, while popup menu expects window coordinates
-    IntRect wr = frameView->contentsToWindow(r);
+    IntRect wr = frameView.contentsToWindow(r);
 
     static jmethodID mid = env->GetMethodID(
             getJPopupMenuClass(),
@@ -144,7 +144,7 @@ void PopupMenuJava::show(const IntRect& r, FrameView* frameView, int index)
     env->CallVoidMethod(
             m_popup,
             mid,
-            (jobject) WebPage::jobjectFromPage(frameView->frame().page()),
+            (jobject) WebPage::jobjectFromPage(frameView.frame().page()),
             wr.x(),
             wr.y() + wr.height(),
             wr.width());
