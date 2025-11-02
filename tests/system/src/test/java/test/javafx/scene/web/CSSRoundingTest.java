@@ -42,6 +42,7 @@ import java.util.concurrent.CountDownLatch;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.Assume.assumeTrue;
 
 public class CSSRoundingTest {
 
@@ -70,14 +71,22 @@ public class CSSRoundingTest {
         }
     }
 
+    private static boolean isEnabled() {
+        return Boolean.getBoolean("web.test");
+    }
+
     @BeforeAll
     public static void setupOnce() {
+        assumeTrue(isEnabled());
+
         Util.launch(launchLatch, CSSRoundingTestApp.class);
     }
 
     @AfterAll
     public static void tearDownOnce() {
-        Util.shutdown();
+        if (isEnabled()) {
+            Util.shutdown();
+        }
     }
 
     @Test

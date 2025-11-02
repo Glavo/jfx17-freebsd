@@ -50,6 +50,7 @@ import static javafx.concurrent.Worker.State.SUCCEEDED;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeTrue;
 
 public class StraightLineTest {
     private static final CountDownLatch launchLatch = new CountDownLatch(1);
@@ -88,6 +89,8 @@ public class StraightLineTest {
 
     @BeforeClass
     public static void setupOnce() {
+        assumeTrue(Boolean.getBoolean("web.test"));
+
         // Start the Test Application
         new Thread(() -> Application.launch(StraightLineTestApp.class, (String[])null)).start();
 

@@ -43,6 +43,7 @@ import org.junit.Test;
 import test.util.Util;
 
 import static org.junit.Assert.*;
+import static org.junit.Assume.assumeTrue;
 import static test.util.Util.TIMEOUT;
 
 /**
@@ -55,6 +56,8 @@ public class SceneGraphHTMLEditorTest {
 
     @BeforeClass
     public static void setupOnce() throws Exception {
+        assumeTrue(Boolean.getBoolean("web.test"));
+
         Platform.setImplicitExit(false);
         PlatformImpl.startup(() -> {
             launchLatch.countDown();

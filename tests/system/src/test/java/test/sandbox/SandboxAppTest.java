@@ -114,11 +114,13 @@ public class SandboxAppTest {
 
     @Test (timeout = 25000)
     public void testFXApp() throws Exception {
+        assumeTrue(Boolean.getBoolean("web.test"));
         runSandboxedApp("FXApp");
     }
 
     @Test (timeout = 25000)
     public void testFXNonApp() throws Exception {
+        assumeTrue(Boolean.getBoolean("web.test"));
         runSandboxedApp("FXNonApp");
     }
 
@@ -136,6 +138,7 @@ public class SandboxAppTest {
 
     @Test (timeout = 25000)
     public void testFXWebApp() throws Exception {
+        assumeTrue(Boolean.getBoolean("web.test"));
         runSandboxedApp("FXWebApp", ERROR_NONE, "empty.policy");
     }
 }

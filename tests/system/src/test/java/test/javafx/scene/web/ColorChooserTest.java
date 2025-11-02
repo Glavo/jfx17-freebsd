@@ -44,6 +44,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import test.util.Util;
 
+import static org.junit.Assume.assumeTrue;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 
@@ -58,16 +59,24 @@ public class ColorChooserTest {
         colorChooserTestApp.startTest();
     }
 
+    private static boolean isEnabled() {
+        return Boolean.getBoolean("web.test");
+    }
+
     @BeforeAll
     public static void setupOnce() {
+        assumeTrue(isEnabled());
+
         new Thread(() -> Application.launch(ColorChooserTestApp.class, (String[]) null)).start();
         Assertions.assertTrue(Util.await(launchLatch), "Timeout waiting for FX runtime to start");
     }
 
     @AfterAll
     public static void tearDownOnce() {
-        Platform.runLater(stage::hide);
-        Platform.exit();
+        if (isEnabled()) {
+            Platform.runLater(stage::hide);
+            Platform.exit();
+        }
     }
 
     public static class ColorChooserTestApp extends Application {

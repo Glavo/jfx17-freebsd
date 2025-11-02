@@ -31,6 +31,7 @@ import junit.framework.AssertionFailedError;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
+import static org.junit.Assume.*;
 import static test.launchertest.Constants.*;
 
 /**
@@ -229,26 +230,31 @@ public class ModuleLauncherTest {
 
     @Test (timeout = 15000)
     public void testModuleJSCallbackUnexported() throws Exception {
+        assumeTrue(Boolean.getBoolean("web.test"));
         doTestLaunchModule(modulePath5, "myapp5.AppJSCallbackUnexported");
     }
 
     @Test (timeout = 15000)
     public void testModuleJSCallbackExported() throws Exception {
+        assumeTrue(Boolean.getBoolean("web.test"));
         doTestLaunchModule(modulePath5, "myapp5.AppJSCallbackExported");
     }
 
     @Test (timeout = 15000)
     public void testModuleJSCallbackQualExported() throws Exception {
+        assumeTrue(Boolean.getBoolean("web.test"));
         doTestLaunchModule(modulePath5, "myapp5.AppJSCallbackQualExported");
     }
 
     @Test (timeout = 15000)
     public void testModuleJSCallbackOpened() throws Exception {
+        assumeTrue(Boolean.getBoolean("web.test"));
         doTestLaunchModule(modulePath5, "myapp5.AppJSCallbackOpened");
     }
 
     @Test (timeout = 15000)
     public void testModuleJSCallbackQualOpened() throws Exception {
+        assumeTrue(Boolean.getBoolean("web.test"));
         doTestLaunchModule(modulePath5, "myapp5.AppJSCallbackQualOpened");
     }
 

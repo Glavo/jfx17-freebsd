@@ -2017,6 +2017,7 @@ allprojects {
         }
 
         systemProperty 'unstable.test', IS_UNSTABLE_TEST
+        systemProperty 'web.test', !IS_BSD
     }
 
     compileTestJava {
