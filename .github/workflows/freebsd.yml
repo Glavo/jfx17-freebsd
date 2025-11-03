@@ -1,17 +1,20 @@
 name: freebsd.yml
 on:
   push:
+    branches:
+      - main
   pull_request:
 
 jobs:
   build:
-    runs-on: ubuntu-24.04
     strategy:
       matrix:
         platform:
           - arch: x86-64
             os-version: 13.2
-            artifact: freebsd-x86_64-13.2
+            artifact: freebsd-x86_64
+    runs-on: ubuntu-24.04
+    name: Build for FreeBSD ${{ matrix.platform.arch }} (${{ matrix.platform.os-version }})
     steps:
       - uses: actions/checkout@v5
       - name: Run on FreeBSD ${{ matrix.platform.arch }} (${{ matrix.platform.os-version }})
@@ -22,7 +25,7 @@ jobs:
           shell: bash
           run: |
             # Setup environment
-            sudo pkg install -y openssh-portable cmake zip unzip gmake makedepend git bison flex gperf perl5 llvm \
+            sudo pkg install -y openssh-portable cmake zip unzip gmake makedepend git bison flex gperf perl5 pkgconf llvm \
               python3 ruby libXxf86vm freetype2 gtk2 gtk3 pango gperf apache-ant openjdk17
             export JAVA_HOME=/usr/local/openjdk17
             export CC=/usr/bin/clang
