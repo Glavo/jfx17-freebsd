@@ -25,7 +25,7 @@ jobs:
           shell: bash
           run: |
             # Setup environment
-            sudo pkg install -y openssh-portable cmake zip unzip gmake makedepend git bison flex gperf perl5 pkgconf llvm \
+            sudo pkg install -y openssh-portable cmake zip unzip gmake makedepend git bison flex perl5 pkgconf llvm \
               python3 ruby libXxf86vm freetype2 gtk2 gtk3 pango gperf apache-ant openjdk17
             export JAVA_HOME=/usr/local/openjdk17
             export CC=/usr/bin/clang
