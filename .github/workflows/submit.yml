@@ -36,15 +36,15 @@
 
 name: JavaFX pre-submit tests
 
-on:
-  # Run GitHub actions on every push to all branches except the main production branches, also
-  # exclude any branch starting with "WIP".
-  push:
-    branches-ignore:
-      - master
-      - main
-      - 'jfx[0-9]+'
-      - 'WIP*'
+#on:
+#  # Run GitHub actions on every push to all branches except the main production branches, also
+#  # exclude any branch starting with "WIP".
+#  push:
+#    branches-ignore:
+#      - master
+#      - main
+#      - 'jfx[0-9]+'
+#      - 'WIP*'
 
 jobs:
   validation:
