@@ -68,7 +68,7 @@ public class UIRenderSnapToPixelTest {
 
     @Test
     public void testScrollPaneSnapChildrenToPixels() {
-        assumeTrue(PlatformUtil.isLinux() || PlatformUtil.isWindows());
+        assumeTrue(PlatformUtil.isBSD() || PlatformUtil.isLinux() || PlatformUtil.isWindows());
 
         Assert.assertEquals("Wrong render scale", scale, stage.getRenderScaleY(), 0.0001);
 

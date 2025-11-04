@@ -218,7 +218,7 @@ class FallbackResource implements CompositeFontResource {
      */
     private void getLinkedFonts() {
         if (fallbacks == null) {
-            if (PrismFontFactory.isLinux) {
+            if (PrismFontFactory.isLinux || PrismFontFactory.isBSD) {
                 FontConfigManager.FcCompFont font =
                     FontConfigManager.getFontConfigFont("sans",
                                                         isBold, isItalic);
