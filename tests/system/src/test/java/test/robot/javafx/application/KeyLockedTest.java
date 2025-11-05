@@ -112,7 +112,7 @@ public class KeyLockedTest {
             Optional<Boolean> numLockState = Platform.isKeyLocked(KeyCode.NUM_LOCK);
             assertNotNull(numLockState);
             // A result should always be present on Windows and Linux
-            if (PlatformUtil.isWindows() || PlatformUtil.isLinux()) {
+            if (PlatformUtil.isWindows() || PlatformUtil.isLinux() || PlatformUtil.isBSD()) {
                 assertTrue(numLockState.isPresent());
             }
             // A result should never be present on Mac

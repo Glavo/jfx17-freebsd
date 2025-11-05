@@ -101,7 +101,7 @@ public class CustomSecurityManagerTest extends VisualTestBase {
     @SuppressWarnings("removal")
     private void doTestOnTopCommon(SecurityManager sm, boolean expectedOnTop) {
         // Skip on Linux due to 8145152
-        assumeTrue(!PlatformUtil.isLinux());
+        assumeTrue(!PlatformUtil.isBSD() && !PlatformUtil.isLinux());
 
         System.setSecurityManager(sm);
         try {
@@ -148,7 +148,7 @@ public class CustomSecurityManagerTest extends VisualTestBase {
                                         boolean expectedFullScreen)
     {
         // Readback of FullScreen window is not stable on Linux
-        assumeTrue(!PlatformUtil.isLinux());
+        assumeTrue(!PlatformUtil.isBSD() && !PlatformUtil.isLinux());
 
         final AtomicInteger screenWidth = new AtomicInteger();
         final AtomicInteger screenHeight = new AtomicInteger();

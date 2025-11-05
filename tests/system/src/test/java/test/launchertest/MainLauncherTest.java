@@ -129,7 +129,7 @@ public class MainLauncherTest {
     public void testMainLauncher() throws Exception {
         if (headless) {
             // Headless tests currently only run on Linux
-            assumeTrue(PlatformUtil.isLinux());
+            assumeTrue(PlatformUtil.isBSD() || PlatformUtil.isLinux());
         }
 
         final ArrayList<String> cmd =

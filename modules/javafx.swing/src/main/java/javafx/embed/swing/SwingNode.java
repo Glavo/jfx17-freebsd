@@ -809,7 +809,7 @@ public class SwingNode extends Node {
     private void ungrabFocus(boolean postUngrabEvent) {
         // On X11 grab is limited to a single XDisplay connection,
         // so we can't delegate it to another GUI toolkit.
-        if (PlatformUtil.isLinux()) return;
+        if (PlatformUtil.isBSD() || PlatformUtil.isLinux()) return;
 
         if (grabbed &&
             getScene() != null &&

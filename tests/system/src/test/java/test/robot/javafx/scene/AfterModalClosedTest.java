@@ -111,7 +111,7 @@ public class AfterModalClosedTest {
             robot = new Robot();
             x = (int) (stage.getX() + stage.getWidth());
             y = (int) (stage.getY() + stage.getHeight());
-            int d = PlatformUtil.isLinux() ? -1 : 2;
+            int d = PlatformUtil.isBSD() || PlatformUtil.isLinux() ? -1 : 2;
             robot.mouseMove(x - d, y - d);
             robot.mousePress(MouseButton.PRIMARY);
         });

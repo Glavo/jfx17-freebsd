@@ -96,7 +96,7 @@ public class NativeMediaManager {
     /**
      * Create a <code>NativeMediaManager</code>.
      */
-    @SuppressWarnings("removal")
+    @SuppressWarnings({"removal", "unchecked"})
     protected NativeMediaManager() {
         /*
          * Load native libraries. This must be done early as platforms may need
@@ -116,7 +116,7 @@ public class NativeMediaManager {
                 } else {
                     dependencies.add("gstreamer-lite");
                 }
-                if (HostUtils.isLinux()) {
+                if (HostUtils.isLinux() || HostUtils.isBSD()) {
                     dependencies.add("fxplugins");
                     dependencies.add("avplugin");
                     dependencies.add("avplugin-54");

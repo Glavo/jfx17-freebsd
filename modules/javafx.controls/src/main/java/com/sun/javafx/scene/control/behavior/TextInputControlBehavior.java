@@ -121,8 +121,7 @@ public abstract class TextInputControlBehavior<T extends TextInputControl> exten
         // control is not in the correct state / on the correct platform
         final Predicate<KeyEvent> validWhenEditable = e -> !c.isEditable();
         final Predicate<KeyEvent> validOnWindows = e -> !PlatformUtil.isWindows();
-        final Predicate<KeyEvent> validOnLinux = e -> !PlatformUtil.isLinux();
-        final Predicate<KeyEvent> validOnFreeBSD = e -> !PlatformUtil.isBSD();
+        final Predicate<KeyEvent> validOnLinuxOrBSD = e -> !PlatformUtil.isLinux() && !PlatformUtil.isBSD();
 
         KeyMapping cancelEditMapping;
         KeyMapping fireMapping;
@@ -256,7 +255,7 @@ public abstract class TextInputControlBehavior<T extends TextInputControl> exten
             keyMapping(new KeyBinding(BACK_SPACE).ctrl(), e -> deletePreviousWord()),
             keyMapping(new KeyBinding(BACK_SLASH).ctrl(), e -> c.deselect()),
             keyMapping(new KeyBinding(Y).ctrl(), e -> redo(), validOnWindows),
-            keyMapping(new KeyBinding(Z).ctrl().shift(), e -> redo(), validOnLinux),
+            keyMapping(new KeyBinding(Z).ctrl().shift(), e -> redo(), validOnLinuxOrBSD),
             keyMapping(new KeyBinding(LEFT).ctrl().shift(), e -> selectLeftWord()),
             keyMapping(new KeyBinding(RIGHT).ctrl().shift(), e -> selectRightWord())
         );
